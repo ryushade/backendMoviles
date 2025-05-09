@@ -1,4 +1,4 @@
-# Backend moviles
+# Backend moviles aplicación de mangas y comics
 
 ## Entorno virtual
 ```
@@ -20,7 +20,9 @@ pip install google-api-python-client
 
 ## Iniciar Proyecto
 ```
-set FLASK_ENV=development
-flask --app main run
+Una vez dentro del entorno virtual:
+
+flask --app main run --host=0.0.0.0
+
 ```
 
