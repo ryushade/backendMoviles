@@ -23,6 +23,13 @@ def protected():
 def register():
     return usuario_controller.registrarUsuario()
 
+
+@app.route("/api_obtener_usuario_data")
+@jwt_required()
+def obtener_usuario_data():
+    return usuario_controller.obtener_usuario_data()
+
+
 @app.route('/api_obtener_dni_lec', methods=['POST'])
 def obtener_dni_lec():
     try:

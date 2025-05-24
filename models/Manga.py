@@ -1,4 +1,4 @@
-class Libro(object):
+class Manga(object):
     def __init__(self, isbn_lib=None, titulo_lib=None, anoPub_lib=None, estado_lib=None, clasificacion=None, id_edi=None, bookPDF=None, image=None, descripcion=None, calificacion_promedio=None, num_calificaciones=None, nombre_completo=None, precio_lib=None):
         self.isbn_lib = isbn_lib
         self.titulo_lib = titulo_lib

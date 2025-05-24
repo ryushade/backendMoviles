@@ -18,7 +18,7 @@ class Usuario(object):
             "email_user": self.email_user,
             "pass_user": self.pass_user,
             "id_rol": self.id_rol,
-            "provider_requested": self.proveedor_solicitud,
-            "provider_approved": self.proveedor_aprobado,
-            "provider_request_date": self.proveedor_fecha_solicitud
+            "proveedor_solictud": self.proveedor_solicitud,
+            "proveedor_aceptado": self.proveedor_aprobado,
+            "proveedor_fecha_solicitud": self.proveedor_fecha_solicitud
         }
