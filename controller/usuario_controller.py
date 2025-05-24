@@ -1,5 +1,6 @@
 import bcrypt
 from flask import jsonify, request
+from flask_jwt_extended import get_jwt_identity
 import services.usuario_service as usuario_service
 import services.lector_service as lector_service
 from models.Usuario import Usuario
@@ -61,3 +62,15 @@ def registrarUsuario():
         response["code"] = 1
         response["msg"]  = f"Error al registrar usuario: {e}"
         return jsonify(response), 500
+
+
+def obtener_usuario_data():
+    email = get_jwt_identity()
+    usuario = usuario_service.obtener_usuario_data_manga(email)
+    if usuario:
+        return jsonify({
+            "nombre": usuario[0],
+            "email": usuario[1]
+        }), 200
+    else:
+        return jsonify({"msg": "Usuario no encontrado"}), 404
