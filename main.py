@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, JWTManager, create_access_token
 import db.database as db
 import controller.auth_controller as auth_controller
 import controller.usuario_controller as usuario_controller
+import controller.admin_controller as admin_controller
 import stripe
 
 app = Flask(__name__)
@@ -22,6 +23,11 @@ def protected():
 @app.route("/api_registrarusuario", methods=["POST"])
 def register():
     return usuario_controller.registrarUsuario()
+
+@app.route("/api_registrar_administrador", methods=["POST"])
+def registrar_administrador():
+    return admin_controller.registrarAdministrador()
+
 
 
 @app.route("/api_obtener_usuario_data")

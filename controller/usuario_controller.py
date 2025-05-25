@@ -3,8 +3,6 @@ from flask import jsonify, request
 from flask_jwt_extended import get_jwt_identity
 import services.usuario_service as usuario_service
 import services.lector_service as lector_service
-from models.Usuario import Usuario
-from models.Lector import Lector
 from datetime import datetime
 
 def registrarUsuario():
@@ -62,6 +60,7 @@ def registrarUsuario():
         response["code"] = 1
         response["msg"]  = f"Error al registrar usuario: {e}"
         return jsonify(response), 500
+        
 
 
 def obtener_usuario_data():
