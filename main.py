@@ -5,15 +5,59 @@ import controller.auth_controller as auth_controller
 import controller.usuario_controller as usuario_controller
 import controller.admin_controller as admin_controller
 import stripe
+import git
+import os
+import hmac
+import hashlib
 
 app = Flask(__name__)
 app.debug = True
 app.config["JWT_SECRET_KEY"] = "secret"
 jwt = JWTManager(app)
 
+
+REPO_PATH = "/home/grupo1damb/mysite/backendMoviles"
+
+# Secreto del webhook (debes definirlo también en GitHub y como variable de entorno en PythonAnywhere)
+WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET", "supersecreto").encode()
+
+def is_valid_signature(x_hub_signature, data):
+    """Verifica la firma HMAC del webhook de GitHub."""
+    if not x_hub_signature:
+        return False
+    try:
+        sha_name, signature = x_hub_signature.split('=')
+    except ValueError:
+        return False
+    if sha_name != 'sha1':
+        return False
+    mac = hmac.new(WEBHOOK_SECRET, msg=data, digestmod=hashlib.sha1)
+    return hmac.compare_digest(mac.hexdigest(), signature)
+
+@app.route('/update_server', methods=['POST'])
+def update_server():
+    signature = request.headers.get('X-Hub-Signature')
+    if not is_valid_signature(signature, request.data):
+        return jsonify({"msg": "Firma inválida"}), 403
+
+    if request.headers.get('X-GitHub-Event') != "push":
+        return jsonify({"msg": "Evento ignorado"}), 200
+
+    try:
+        repo = git.Repo(REPO_PATH)
+        origin = repo.remotes.origin
+        pull_result = origin.pull()
+        return jsonify({"msg": "Repositorio actualizado", "resultado": str(pull_result)}), 200
+    except Exception as e:
+        return jsonify({"msg": "Error al hacer pull", "error": str(e)}), 500
+
+
+
+
 @app.route("/auth", methods=["POST"]) 
 def auth():
     return auth_controller.auth()
+
 
 @app.route("/protected", methods=["GET"])
 @jwt_required()
