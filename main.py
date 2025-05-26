@@ -18,7 +18,10 @@ jwt = JWTManager(app)
 
 REPO_PATH = "/home/grupo1damb/mysite/backendMoviles"
 
-WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET", "supersecreto").encode()
+WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET")
+if not WEBHOOK_SECRET:
+    raise RuntimeError("GITHUB_WEBHOOK_SECRET no está configurado en las variables de entorno.")
+WEBHOOK_SECRET = WEBHOOK_SECRET.encode()
 
 def is_valid_signature(x_hub_signature, data):
     """Verifica la firma HMAC del webhook de GitHub."""
@@ -59,7 +62,7 @@ def auth():
 def api_test():
     return jsonify({
         "status": "ok",
-        "message": "La aplicación Flask está corriendo correctamente.",
+        "message": "La aplicación Flask está bien.",
         "autor": "grupo1damb"
     }), 200
 
