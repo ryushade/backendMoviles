@@ -18,7 +18,6 @@ jwt = JWTManager(app)
 
 REPO_PATH = "/home/grupo1damb/mysite/backendMoviles"
 
-# Secreto del webhook (debes definirlo también en GitHub y como variable de entorno en PythonAnywhere)
 WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET", "supersecreto").encode()
 
 def is_valid_signature(x_hub_signature, data):
@@ -50,8 +49,6 @@ def update_server():
         return jsonify({"msg": "Repositorio actualizado", "resultado": str(pull_result)}), 200
     except Exception as e:
         return jsonify({"msg": "Error al hacer pull", "error": str(e)}), 500
-
-
 
 
 @app.route("/auth", methods=["POST"]) 
