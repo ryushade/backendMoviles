@@ -62,7 +62,7 @@ def auth():
 def api_test():
     return jsonify({
         "status": "ok",
-        "message": "La aplicación Flask está bien.",
+        "message": "La aplicación Flask está corriendo correctamente.",
         "autor": "grupo1damb"
     }), 200
 
