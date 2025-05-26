@@ -16,6 +16,7 @@ pip install bcrypt
 pip install stripe
 pip install firebase-admin
 pip install google-api-python-client
+pip install GitPython
 ```
 
 ## Iniciar Proyecto
