@@ -55,6 +55,14 @@ def update_server():
 def auth():
     return auth_controller.auth()
 
+@app.route('/api_test', methods=['GET'])
+def api_test():
+    return jsonify({
+        "status": "ok",
+        "message": "La aplicación Flask está corriendo correctamente.",
+        "autor": "grupo1damb"
+    }), 200
+
 
 @app.route("/protected", methods=["GET"])
 @jwt_required()
