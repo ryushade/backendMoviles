@@ -78,10 +78,12 @@ def register():
     return usuario_controller.registrarUsuario()
 
 @app.route("/api_registrar_administrador", methods=["POST"])
+@jwt_required()
 def registrar_administrador():
     return admin_controller.registrarAdministrador()
 
 @app.route("/api_aprobar_proveedor", methods=["POST"])
+@jwt_required()
 def registrar_proveedor():
     return admin_controller.aprobar_proveedor()
 
