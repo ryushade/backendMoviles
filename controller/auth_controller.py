@@ -6,6 +6,7 @@ from models.Usuario import Usuario
 
 def auth():
     email = request.json.get("email", None)
+    print("Email recibido:", email)
     password = request.json.get("password", None)
 
     if not email or not password:
