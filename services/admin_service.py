@@ -60,9 +60,14 @@ def obtener_solicitudes_proveedor():
             with conexion.cursor() as cursor:
                 cursor.execute(
                     """
-                    SELECT id_user, email, proveedor_fecha_solicitud
-                    FROM usuario
-                    WHERE proveedor_solicitud = 1 AND proveedor_aprobado = 0
+                    SELECT 
+                        u.id_user, 
+                        u.email, 
+                        CONCAT(l.nom_lec, ' ', l.apellidos_lec) AS nombre_completo, 
+                        u.proveedor_fecha_solicitud
+                    FROM usuario u
+                    INNER JOIN lector l ON u.id_user = l.id_user
+                    WHERE u.proveedor_solicitud = 1 AND u.proveedor_aprobado = 0
                     """
                 )
                 resultados = cursor.fetchall()
@@ -70,9 +75,10 @@ def obtener_solicitudes_proveedor():
         if resultados:
             return [
                 {
-                    "id_user": fila.get("id_user"),
-                    "email": fila.get("email"),
-                    "fecha_solicitud": fila.get("proveedor_fecha_solicitud")
+                    "id_user": fila["id_user"],
+                    "email": fila["email"],
+                    "nombre": fila["nombre_completo"],
+                    "fecha_solicitud": fila["proveedor_fecha_solicitud"]
                 }
                 for fila in resultados
             ]
