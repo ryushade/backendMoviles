@@ -87,6 +87,11 @@ def registrar_administrador():
 def registrar_proveedor():
     return admin_controller.aprobar_proveedor()
 
+@app.route("/api_obtener_proveedor")
+@jwt_required()
+def obtener_proveedor():
+    return admin_controller.get_solicitudes_proveedor()
+
 
 
 @app.route("/api_obtener_usuario_data")

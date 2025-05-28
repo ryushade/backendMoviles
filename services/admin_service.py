@@ -20,6 +20,58 @@ def aprobar_proveedor(id_user, nombre_empresa, id_rol_proveedor=2):
     except Exception as e:
         print("Error al aprobar proveedor:", e)
         return False
+    
+
+def obtener_proveedor_por_id(id_user):
+    try:
+        with db.obtener_conexion() as conexion:
+            with conexion.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id_proveedor, nombre_empresa
+                    FROM proveedor
+                    WHERE id_user = %s
+                    """,
+                    (id_user,)
+                )
+                proveedor = cursor.fetchone()
+        if proveedor:
+            return {
+                "id_proveedor": proveedor.get("id_proveedor"),
+                "nombre_empresa": proveedor.get("nombre_empresa")
+            }
+        return None
+    except Exception as e:
+        print("Error al obtener proveedor:", e)
+        return None
+
+def obtener_solicitudes_proveedor():
+    try:
+        with db.obtener_conexion() as conexion:
+            with conexion.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id_user, email, proveedor_fecha_solicitud
+                    FROM usuario
+                    WHERE proveedor_solicitud = 1 AND proveedor_aprobado = 0
+                    """
+                )
+                resultados = cursor.fetchall()
+
+        if resultados:
+            return [
+                {
+                    "id_user": fila.get("id_user"),
+                    "email": fila.get("email"),
+                    "fecha_solicitud": fila.get("proveedor_fecha_solicitud")
+                }
+                for fila in resultados
+            ]
+        return []
+    except Exception as e:
+        print("Error al obtener solicitudes de proveedor:", e)
+        return []
+
 
     
 
