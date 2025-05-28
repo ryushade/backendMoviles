@@ -1,18 +1,26 @@
 import db.database as db
 
 
-def aprobar_proveedor(id_user, nombre_empresa, id_rol_proveedor=2):
+def aprobar_proveedor(id_user, id_rol_proveedor=2):
     try:
         with db.obtener_conexion() as conexion:
             with conexion.cursor() as cursor:
+                cursor.execute("SELECT email FROM usuario WHERE id_user = %s", (id_user,))
+                resultado = cursor.fetchone()
+
+                if not resultado:
+                    return False  
+
+                email = resultado.get("email")
+
                 cursor.execute(
                     "UPDATE usuario SET proveedor_aprobado = 1, id_rol = %s WHERE id_user = %s",
                     (id_rol_proveedor, id_user)
                 )
 
                 cursor.execute(
-                    "INSERT INTO proveedor (id_user, id_rol, nombre_empresa) VALUES (%s, %s, %s)",
-                    (id_user, id_rol_proveedor, nombre_empresa)
+                    "INSERT INTO proveedor (id_user, id_rol, email_empresa) VALUES (%s, %s, %s)",
+                    (id_user, id_rol_proveedor, email)
                 )
 
             conexion.commit()
@@ -20,6 +28,7 @@ def aprobar_proveedor(id_user, nombre_empresa, id_rol_proveedor=2):
     except Exception as e:
         print("Error al aprobar proveedor:", e)
         return False
+
     
 
 def obtener_proveedor_por_id(id_user):
