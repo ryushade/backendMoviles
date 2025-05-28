@@ -42,8 +42,8 @@ def obtener_usuario_data_manga(email):
                 usuario = cursor.fetchone()
         if usuario:
             return {
-                "nombre": usuario[0],
-                "email": usuario[1]
+                "nombre": usuario['nombre_completo'],  
+                "email": usuario['email']  
             }
         return None
     except Exception as e:
