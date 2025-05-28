@@ -31,3 +31,34 @@ def registrarAdministrador():
             "success": False,
             "message": f"Error al registrar administrador: {e}"
         }), 500
+    
+def aprobar_proveedor():
+    try:
+        if "id_user" not in request.json or "nombre_empresa" not in request.json:
+            return jsonify({
+                "success": False,
+                "message": "Faltan campos obligatorios: id_user y nombre_empresa"
+            }), 400
+
+        id_user = request.json["id_user"]
+        nombre_empresa = request.json["nombre_empresa"]
+        id_rol_proveedor = request.json.get("id_rol_proveedor", 2) 
+
+        resultado = admin_service.aprobar_proveedor(id_user, nombre_empresa, id_rol_proveedor)
+
+        if resultado:
+            return jsonify({
+                "success": True,
+                "message": "Proveedor aprobado correctamente"
+            }), 200
+        else:
+            return jsonify({
+                "success": False,
+                "message": "Error al aprobar proveedor"
+            }), 500
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"Error al aprobar proveedor: {e}"
+        }), 500

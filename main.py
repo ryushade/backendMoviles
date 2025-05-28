@@ -67,6 +67,7 @@ def api_test():
     }), 200
 
 
+
 @app.route("/protected", methods=["GET"])
 @jwt_required()
 def protected():
@@ -79,6 +80,10 @@ def register():
 @app.route("/api_registrar_administrador", methods=["POST"])
 def registrar_administrador():
     return admin_controller.registrarAdministrador()
+
+@app.route("/api_aprobar_proveedor", methods=["POST"])
+def registrar_proveedor():
+    return admin_controller.aprobar_proveedor()
 
 
 
