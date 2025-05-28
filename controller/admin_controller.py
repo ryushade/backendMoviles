@@ -67,22 +67,21 @@ def aprobar_proveedor():
 def get_solicitudes_proveedor():
     try:
         solicitudes = admin_service.obtener_solicitudes_proveedor()
-
         if solicitudes:
-            return jsonify({
+            return {
                 "success": True,
                 "data": solicitudes
-            }), 200
+            }, 200
         else:
-            return jsonify({
+            return {
                 "success": True,
                 "data": [],
                 "message": "No hay solicitudes de proveedor pendientes"
-            }), 200  
-
+            }, 200  
     except Exception as e:
-        return jsonify({
+        return {
             "success": False,
             "message": "Error al obtener solicitudes de proveedor",
             "error": str(e)
-        }), 500
+        }, 500
+

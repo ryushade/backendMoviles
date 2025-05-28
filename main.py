@@ -90,11 +90,8 @@ def registrar_proveedor():
 @app.route("/api_obtener_proveedor")
 @jwt_required()
 def obtener_proveedor():
-    solicitudes = admin_controller.get_solicitudes_proveedor()
-    return jsonify({
-        "success": True,
-        "data": solicitudes
-    }), 200
+    respuesta, status = admin_controller.get_solicitudes_proveedor()
+    return jsonify(respuesta), status
 
 
 
