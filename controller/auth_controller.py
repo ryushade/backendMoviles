@@ -13,31 +13,35 @@ def auth():
 
     try:
         usuario = usuario_service.obtener_usuario(email)
+        print("usuario:", usuario)
+
         if usuario:
-            email_almacenado = usuario[1]
-            hash_almacenado = usuario[2]
-            
+            email_almacenado = usuario['email']
+            hash_almacenado = usuario['contrasena']
+            id_rol = usuario['id_rol']
+
             if not hash_almacenado:
                 print(f"Usuario encontrado pero no tiene el hash de contraseña: {email}")
                 return jsonify({"msg": "Error en configuración de cuenta. Contacte al administrador"}), 500
-                
+
             if email == email_almacenado and bcrypt.checkpw(password.encode('utf-8'), hash_almacenado.encode('utf-8')):
-                user = Usuario(usuario[0], email, password)
+                user = Usuario(usuario['id'], email_almacenado, password)
                 access_token = create_access_token(identity=user.email_user)
-                id_rol = usuario[3]
                 return jsonify(
                     access_token=access_token,
-                        id_rol=id_rol
-                    ), 200
+                    id_rol=id_rol
+                ), 200
             else:
                 return jsonify({"msg": "Credenciales incorrectas"}), 401
         else:
             return jsonify({"msg": "Usuario no encontrado"}), 404
+
     except Exception as e:
         print("Error en autenticación:", e)
         import traceback
         traceback.print_exc()
         return jsonify({"msg": "Error durante autenticación"}), 500
+
 
 def protected():
     current_user = get_jwt_identity()
