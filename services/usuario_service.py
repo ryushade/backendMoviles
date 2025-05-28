@@ -9,17 +9,7 @@ def obtener_usuario(email):
                 cursor.execute(
                     "SELECT id_user, email, pass, id_rol, proveedor_solicitud, proveedor_aprobado, proveedor_fecha_solicitud FROM usuario WHERE email = %s", (email,))
                 usuario = cursor.fetchone()
-        if usuario:
-            return {
-                'id': usuario[0],
-                'email': usuario[1],
-                'pass': usuario[2],
-                'id_rol': usuario[3],
-                'proveedor_solicitud': usuario[4],
-                'proveedor_aprobado': usuario[5],
-                'proveedor_fecha_solicitud': usuario[6]
-            }
-        return None
+        return usuario  # <-- retorna el dict directamente
     except Exception as e:
         print("Error: ", e)
         return None
