@@ -25,7 +25,7 @@ def auth():
                 return jsonify({"msg": "Error en configuración de cuenta. Contacte al administrador"}), 500
 
             if email == email_almacenado and bcrypt.checkpw(password.encode('utf-8'), hash_almacenado.encode('utf-8')):
-                user = Usuario(usuario['id'], email_almacenado, password)
+                user = Usuario(usuario['id_user'], email_almacenado, password)
                 access_token = create_access_token(identity=user.email_user)
                 return jsonify(
                     access_token=access_token,
