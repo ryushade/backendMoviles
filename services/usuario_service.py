@@ -5,7 +5,7 @@ from datetime import datetime
 def obtener_usuario(email):
     try:
         with db.obtener_conexion() as conexion:
-            with conexion.cursor() as cursor:
+            with conexion.cursor(dictionary=True) as cursor:  # Usa dictionary=True
                 cursor.execute(
                     "SELECT id_user, email, pass, id_rol, proveedor_solicitud, proveedor_aprobado, proveedor_fecha_solicitud FROM usuario WHERE email = %s", (email,))
                 usuario = cursor.fetchone()
