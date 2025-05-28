@@ -68,8 +68,8 @@ def obtener_usuario_data():
     usuario = usuario_service.obtener_usuario_data_manga(email)
     if usuario:
         return jsonify({
-            "nombre": usuario[0],
-            "email": usuario[1]
+            "nombre": usuario['nombre_completo'],
+            "email": usuario['email']
         }), 200
     else:
         return jsonify({"msg": "Usuario no encontrado"}), 404
