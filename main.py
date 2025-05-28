@@ -91,7 +91,11 @@ def registrar_proveedor():
 @jwt_required()
 def obtener_proveedor():
     solicitudes = admin_controller.get_solicitudes_proveedor()
-    return jsonify(solicitudes), 200
+    return jsonify({
+        "success": True,
+        "data": solicitudes
+    }), 200
+
 
 
 
