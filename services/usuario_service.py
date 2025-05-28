@@ -39,7 +39,12 @@ def obtener_usuario_data_manga(email):
                     WHERE u.email = %s
                     """, (email,))
                 usuario = cursor.fetchone()
-        return usuario
+        if usuario:
+            return {
+                "nombre": usuario[0],
+                "email": usuario[1]
+            }
+        return None
     except Exception as e:
         print("Error: ", e)
         return None

@@ -64,12 +64,9 @@ def registrarUsuario():
 
 
 def obtener_usuario_data():
-    email = get_jwt_identity()
+    email = get_jwt_identity()  
     usuario = usuario_service.obtener_usuario_data_manga(email)
-    if usuario:
-        return jsonify({
-            "nombre": usuario[0],
-            "email": usuario[1]
-        }), 200
-    else:
+    if not usuario:
         return jsonify({"msg": "Usuario no encontrado"}), 404
+    return jsonify(usuario), 200
+
