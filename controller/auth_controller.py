@@ -17,7 +17,7 @@ def auth():
 
         if usuario:
             email_almacenado = usuario['email']
-            hash_almacenado = usuario['contrasena']
+            hash_almacenado = usuario['pass']
             id_rol = usuario['id_rol']
 
             if not hash_almacenado:
