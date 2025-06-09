@@ -34,7 +34,10 @@ def obtener_usuario_data_manga(email):
             with conexion.cursor() as cursor:
                 cursor.execute(
                     """
-                    SELECT CONCAT(l.nom_lec, ' ', l.apellidos_lec) AS nombre_completo, u.email
+                    SELECT 
+                        CONCAT(l.nom_lec, ' ', l.apellidos_lec) AS nombre_completo, 
+                        u.email,
+                        u.proveedor_solicitud
                     FROM lector l
                     INNER JOIN usuario u ON l.id_user = u.id_user
                     WHERE u.email = %s
@@ -43,12 +46,14 @@ def obtener_usuario_data_manga(email):
         if usuario:
             return {
                 "nombre": usuario['nombre_completo'],  
-                "email": usuario['email']  
+                "email": usuario['email'],
+                "proveedor_solicitud": usuario['proveedor_solicitud'] == 1  # convierte a booleano
             }
         return None
     except Exception as e:
         print("Error: ", e)
         return None
+
 
 
     

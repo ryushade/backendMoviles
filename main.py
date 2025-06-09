@@ -1,7 +1,8 @@
 from flask import Flask, request, jsonify
-from flask_jwt_extended import jwt_required, JWTManager, create_access_token
+from flask_jwt_extended import jwt_required, JWTManager, create_access_token, get_jwt_identity
 import db.database as db
 import controller.auth_controller as auth_controller
+import services.proveedor_service as proveedor_service
 import controller.usuario_controller as usuario_controller
 import controller.admin_controller as admin_controller
 import stripe
@@ -92,6 +93,12 @@ def registrar_proveedor():
 def obtener_proveedor():
     respuesta, status = admin_controller.get_solicitudes_proveedor()
     return jsonify(respuesta), status
+
+@app.route("/api_solicitar_proveedor", methods=["PUT"])
+@jwt_required()
+def solicitar_proveedor():
+    email = get_jwt_identity() 
+    return proveedor_service.solicitar_proveedor(email)
 
 
 

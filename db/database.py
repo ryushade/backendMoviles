@@ -3,7 +3,7 @@ import pymysql
 import socket
 
 def obtener_conexion():
-    entorno = 'local' if socket.gethostname() == 'localhost' or 'local' in socket.gethostname() else 'pythonanywhere'
+    entorno = 'local'  
 
     if entorno == 'local':
         return pymysql.connect(
@@ -18,7 +18,7 @@ def obtener_conexion():
         return pymysql.connect(
             host='grupo1damb.mysql.pythonanywhere-services.com',
             user='grupo1damb',
-            password=os.getenv('DB_PASSWORD'),  
+            password=os.getenv('DB_PASSWORD'),
             db='grupo1damb$db_mangakomi',
             charset='utf8mb4',
             cursorclass=pymysql.cursors.DictCursor
