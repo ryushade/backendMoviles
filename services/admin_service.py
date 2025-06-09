@@ -106,3 +106,12 @@ def agregar_administrador(id_user, id_rol=3):
     except Exception as e:
         print("Error: ", e)
         return {"success": False, "message": f"Error: {e}"}
+
+
+def aprobar_publicacion():
+    try:
+        
+    
+    except Exception as e:
+        print("Error al aprobar publicación:", e)
+        return {"code": 1, "msg": "Error interno del servidor"}, 500

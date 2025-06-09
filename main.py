@@ -100,6 +100,14 @@ def solicitar_proveedor():
     email = get_jwt_identity() 
     return proveedor_service.solicitar_proveedor(email)
 
+@app.route("/api_registrar_solicitud", methods=["POST"])
+@jwt_required()
+def insertar_solicitud():
+    data = request.json
+    if not data:
+        return jsonify({"code": 1, "msg": "Datos de solicitud no proporcionados"}), 400
+    return proveedor_service.registrar_solicitud(data)
+
 
 
 
