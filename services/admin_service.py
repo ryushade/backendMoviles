@@ -223,8 +223,8 @@ def lanzar_job_import_paginas(id_volumen, url_zip):
             response.raise_for_status()
             zip_bytes = BytesIO(response.content)
 
-            # 2. Extraer imágenes en una carpeta específica
-            extract_dir = os.path.join('media', 'volumenes', str(id_volumen))
+            # 2. Extraer imágenes en una carpeta específica dentro de static
+            extract_dir = os.path.join('static', 'volumenes', str(id_volumen))
             os.makedirs(extract_dir, exist_ok=True)
             with zipfile.ZipFile(zip_bytes) as zip_ref:
                 zip_ref.extractall(extract_dir)
@@ -234,7 +234,7 @@ def lanzar_job_import_paginas(id_volumen, url_zip):
             with db.obtener_conexion() as conexion:
                 with conexion.cursor() as cursor:
                     for idx, nombre_img in enumerate(imagenes, start=1):
-                        ruta_img = os.path.join(extract_dir, nombre_img)
+                        ruta_img = os.path.join('volumenes', str(id_volumen), nombre_img)  # Ruta relativa a static
                         cursor.execute(
                             """
                             INSERT INTO pagina (id_volumen, numero_pagina, ruta_imagen)

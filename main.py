@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, JWTManager, create_access_token, ge
 import db.database as db
 import controller.auth_controller as auth_controller
 import services.proveedor_service as proveedor_service
+import services.admin_service as admin_service
 import controller.usuario_controller as usuario_controller
 import controller.admin_controller as admin_controller
 import stripe
@@ -10,11 +11,19 @@ import git
 import os
 import hmac
 import hashlib
+from werkzeug.utils import secure_filename
+
+UPLOAD_FOLDER_PORTADAS = os.path.join("static", "uploads", "portadas")
+UPLOAD_FOLDER_ZIPS = os.path.join("static", "uploads", "zips")
+os.makedirs(UPLOAD_FOLDER_PORTADAS, exist_ok=True)
+os.makedirs(UPLOAD_FOLDER_ZIPS, exist_ok=True)
 
 app = Flask(__name__)
 app.debug = True
 app.config["JWT_SECRET_KEY"] = "secret"
 jwt = JWTManager(app)
+
+
 
 
 REPO_PATH = "/home/grupo1damb/mysite/backendMoviles"
@@ -58,6 +67,41 @@ def update_server():
 @app.route("/auth", methods=["POST"]) 
 def auth():
     return auth_controller.auth()
+
+
+@app.route("/upload_portada", methods=["POST"])
+@jwt_required()
+def upload_portada():
+    if 'file' not in request.files:
+        return jsonify({"msg": "No se recibió archivo"}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"msg": "Archivo vacío"}), 400
+
+    filename = secure_filename(file.filename)
+    path = os.path.join(UPLOAD_FOLDER_PORTADAS, filename)
+    file.save(path)
+
+    url = f"{request.host_url}static/uploads/portadas/{filename}"
+    return jsonify({"url": url}), 200
+
+@app.route("/upload_zip", methods=["POST"])
+@jwt_required()
+def upload_zip():
+    if 'file' not in request.files:
+        return jsonify({"msg": "No se recibió archivo"}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"msg": "Archivo vacío"}), 400
+
+    filename = secure_filename(file.filename)
+    path = os.path.join(UPLOAD_FOLDER_ZIPS, filename)
+    file.save(path)
+
+    url = f"{request.host_url}static/uploads/zips/{filename}"
+    return jsonify({"url": url}), 200
 
 @app.route('/api_test', methods=['GET'])
 def api_test():
@@ -107,6 +151,16 @@ def insertar_solicitud():
     if not data:
         return jsonify({"code": 1, "msg": "Datos de solicitud no proporcionados"}), 400
     return proveedor_service.registrar_solicitud(data)
+
+@app.route("/api_aprobar_publicacion", methods=["POST"])
+@jwt_required()
+def aprobar_publicacion():
+    data = request.json
+    if not data or "id_solicitud" not in data or "id_admin" not in data:
+        return jsonify({"code": 1, "msg": "Datos de aprobación no proporcionados"}), 400
+    return admin_service.aprobar_publicacion(data["id_solicitud"], data["id_admin"])
+
+
 
 
 
