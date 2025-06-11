@@ -1,9 +1,11 @@
+import pymysql
 import db.database as db
 import threading
 import requests
 import zipfile
 import os
 from io import BytesIO
+from pymysql.cursors import DictCursor
 
 
 def aprobar_proveedor(id_user, id_rol_proveedor=2):
@@ -33,8 +35,59 @@ def aprobar_proveedor(id_user, id_rol_proveedor=2):
     except Exception as e:
         print("Error al aprobar proveedor:", e)
         return False
-
     
+def rechazar_proveedor(id_user):
+    try:
+        with db.obtener_conexion() as conexion:
+            with conexion.cursor() as cursor:
+                cursor.execute("SELECT email FROM usuario WHERE id_user = %s", (id_user,))
+                resultado = cursor.fetchone()
+
+                if not resultado:
+                    return {"msg": "Usuario no encontrado"}, 404
+
+                cursor.execute(
+                    "UPDATE usuario SET proveedor_aprobado = 0, proveedor_solicitud = 0 WHERE id_user = %s",
+                    (id_user,)
+                )
+            conexion.commit()
+        return {"msg": "Proveedor rechazado correctamente"}, 200
+    except Exception as e:
+        print("Error al rechazar proveedor:", e)
+        return {"msg": "Error interno del servidor"}, 500
+
+def rechazar_proveedor_por_id(id_user):
+    try:
+        with db.obtener_conexion() as conexion:
+            with conexion.cursor(DictCursor) as cursor:
+                cursor.execute(
+                    "SELECT proveedor_solicitud, proveedor_aprobado "
+                    "FROM usuario WHERE id_user = %s",
+                    (id_user,)
+                )
+                fila = cursor.fetchone()
+                if not fila:
+                    return {"msg": "Usuario no encontrado"}, 404
+
+                if fila["proveedor_solicitud"] != 1 or fila["proveedor_aprobado"] != 0:
+                    return {
+                        "msg": "No se realizó ningún cambio. Usuario no tenía solicitud pendiente"
+                    }, 400
+
+                cursor.execute(
+                    "UPDATE usuario "
+                    "SET proveedor_aprobado = 0, proveedor_solicitud = 0 "
+                    "WHERE id_user = %s",
+                    (id_user,)
+                )
+                conexion.commit()
+
+        return {"msg": "Proveedor rechazado correctamente"}, 200
+
+    except Exception as e:
+        print("Error al rechazar proveedor:", e)
+        return {"msg": "Error interno del servidor"}, 500
+
 
 def obtener_proveedor_por_id(id_user):
     try:
@@ -58,6 +111,49 @@ def obtener_proveedor_por_id(id_user):
     except Exception as e:
         print("Error al obtener proveedor:", e)
         return None
+    
+def obtener_solicitud_publicacion():  
+    try: 
+        with db.obtener_conexion() as conexion:
+            with conexion.cursor(DictCursor) as cursor:
+                cursor.execute(
+                    """
+                    SELECT sp.id_solicitud, u.email, sp.titulo, sp.autores,
+                           sp.anio_publicacion, sp.precio_volumen, sp.restriccion_edad,
+                           sp.editorial, sp.genero_principal, sp.descripcion,
+                           sp.url_portada, sp.url_zip
+                    FROM solicitud_publicacion sp
+                    INNER JOIN usuario u ON sp.id_user = u.id_user
+                    WHERE sp.estado = 'pendiente'
+                    """
+                )
+                solicitudes = cursor.fetchall()
+
+        if solicitudes:
+            return [
+                {
+                    "id_solicitud": fila["id_solicitud"],
+                    "email": fila["email"],
+                    "titulo": fila["titulo"],
+                    "autores": fila["autores"],
+                    "anio_publicacion": fila["anio_publicacion"],
+                    "precio_volumen": fila["precio_volumen"],
+                    "restriccion_edad": fila["restriccion_edad"],
+                    "editorial": fila["editorial"],
+                    "genero_principal": fila["genero_principal"],
+                    "descripcion": fila["descripcion"],
+                    "url_portada": fila["url_portada"],
+                    "url_zip": fila["url_zip"]
+                }
+                for fila in solicitudes
+            ]
+        return []
+    except Exception as e:
+        print("Error al obtener solicitudes de publicación:", e)
+        return []
+    
+      
+    
 
 def obtener_solicitudes_proveedor():
     try:

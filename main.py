@@ -152,6 +152,18 @@ def registrar_administrador():
 def registrar_proveedor():
     return admin_controller.aprobar_proveedor()
 
+@app.route("/api_rechazar_proveedor", methods=["POST"])
+@jwt_required()
+def rechaza_proveedor():
+    data = request.get_json()
+    id_objetivo = data.get("id_user")
+    if id_objetivo is None:
+        return jsonify({"msg": "Falta el id_user del usuario a rechazar"}), 400
+
+    # llamamos a un servicio que trabaja por ID, no por email
+    respuesta, status = admin_service.rechazar_proveedor_por_id(id_objetivo)
+    return jsonify(respuesta), status
+
 @app.route("/api_obtener_proveedor")
 @jwt_required()
 def obtener_proveedor():
@@ -198,7 +210,22 @@ def api_obtener_generos():
         generos_list = [{"id_genero": g[0], "nombre_genero": g[1]} for g in generos]
     return jsonify(generos_list), 200  # <-- solo la lista, no un dict
 
+@app.route("/api_obtener_mis_solicitudes", methods=["GET"])
+@jwt_required()
+def obtener_solicitudes():
+    email_user = get_jwt_identity()
+    if not email_user:
+        return jsonify({"success": False, "message": "Usuario no autenticado"}), 401
 
+    respuesta, status = proveedor_service.getMisSolicitudes(email_user)
+    return jsonify(respuesta), status
+
+
+@app.route("/api_obtener_solicitud_historieta", methods=["GET"])
+@jwt_required()
+def obtener_solicitud_historieta():
+    respuesta = admin_service.obtener_solicitud_publicacion()
+    return jsonify(respuesta), 200
 
 
 @app.route("/api_obtener_usuario_data")
