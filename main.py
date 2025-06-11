@@ -12,6 +12,7 @@ import os
 import hmac
 import hashlib
 from werkzeug.utils import secure_filename
+import uuid
 
 UPLOAD_FOLDER_PORTADAS = os.path.join("static", "uploads", "portadas")
 UPLOAD_FOLDER_ZIPS = os.path.join("static", "uploads", "zips")
@@ -69,6 +70,11 @@ def auth():
     return auth_controller.auth()
 
 
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 @app.route("/upload_portada", methods=["POST"])
 @jwt_required()
 def upload_portada():
@@ -79,7 +85,11 @@ def upload_portada():
     if file.filename == '':
         return jsonify({"msg": "Archivo vacío"}), 400
 
-    filename = secure_filename(file.filename)
+    if not allowed_file(file.filename):
+        return jsonify({"msg": "Tipo de archivo no permitido"}), 400
+
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    filename = f"{uuid.uuid4()}.{ext}"
     path = os.path.join(UPLOAD_FOLDER_PORTADAS, filename)
     file.save(path)
 
