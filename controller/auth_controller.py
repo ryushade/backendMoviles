@@ -27,7 +27,7 @@ def auth():
 
             if email == email_almacenado and bcrypt.checkpw(password.encode('utf-8'), hash_almacenado.encode('utf-8')):
                 user = Usuario(usuario['id_user'], email_almacenado, password)
-                access_token = create_access_token(identity=user.email_user)
+                access_token = create_access_token(identity=user.email_user, expires_delta=False)
                 return jsonify(
                     access_token=access_token,
                     id_rol=id_rol

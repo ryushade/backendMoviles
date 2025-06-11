@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, url_for, current_app
 from flask_jwt_extended import jwt_required, JWTManager, create_access_token, get_jwt_identity
 import db.database as db
 import controller.auth_controller as auth_controller
@@ -6,6 +6,7 @@ import services.proveedor_service as proveedor_service
 import services.admin_service as admin_service
 import controller.usuario_controller as usuario_controller
 import controller.admin_controller as admin_controller
+import services.genero_service as genero_service
 import stripe
 import git
 import os
@@ -14,8 +15,9 @@ import hashlib
 from werkzeug.utils import secure_filename
 import uuid
 
-UPLOAD_FOLDER_PORTADAS = os.path.join("static", "uploads", "portadas")
-UPLOAD_FOLDER_ZIPS = os.path.join("static", "uploads", "zips")
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+UPLOAD_FOLDER_PORTADAS = os.path.join(BASE_DIR, "static", "uploads", "portadas")
+UPLOAD_FOLDER_ZIPS     = os.path.join(BASE_DIR, "static", "uploads", "zips")
 os.makedirs(UPLOAD_FOLDER_PORTADAS, exist_ok=True)
 os.makedirs(UPLOAD_FOLDER_ZIPS, exist_ok=True)
 
@@ -78,23 +80,31 @@ def allowed_file(filename):
 @app.route("/upload_portada", methods=["POST"])
 @jwt_required()
 def upload_portada():
-    if 'file' not in request.files:
-        return jsonify({"msg": "No se recibió archivo"}), 400
+    try:
+        print("HEADERS:", dict(request.headers))           # <— confirma si llega Authorization
+        if "file" not in request.files:
+            return jsonify(msg="No se recibió archivo"), 400
 
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({"msg": "Archivo vacío"}), 400
+        file = request.files["file"]
+        if file.filename == "":
+            return jsonify(msg="Archivo vacío"), 400
+        if not allowed_file(file.filename):
+            return jsonify(msg="Tipo de archivo no permitido"), 400
 
-    if not allowed_file(file.filename):
-        return jsonify({"msg": "Tipo de archivo no permitido"}), 400
+        ext = file.filename.rsplit(".", 1)[1].lower()
+        filename = f"{uuid.uuid4()}.{ext}"
+        destino = os.path.join(UPLOAD_FOLDER_PORTADAS, filename)
+        print("GUARDANDO EN:", destino)                    # <— muestra la ruta real
+        file.save(destino)                                 # <— si algo falla, saltará al except
+        url = url_for("static", filename=f"uploads/portadas/{filename}", _external=True)
+        return jsonify(url=url), 200
 
-    ext = file.filename.rsplit('.', 1)[1].lower()
-    filename = f"{uuid.uuid4()}.{ext}"
-    path = os.path.join(UPLOAD_FOLDER_PORTADAS, filename)
-    file.save(path)
+    except Exception as e:
+        import traceback, sys
+        traceback.print_exc()                              # <— traza completa en consola
+        return jsonify(msg="Error interno", detail=str(e)), 500
 
-    url = f"{request.host_url}static/uploads/portadas/{filename}"
-    return jsonify({"url": url}), 200
+
 
 @app.route("/upload_zip", methods=["POST"])
 @jwt_required()
@@ -171,6 +181,22 @@ def aprobar_publicacion():
     return admin_service.aprobar_publicacion(data["id_solicitud"], data["id_admin"])
 
 
+@app.route("/api_obtener_generos", methods=["GET"])
+@jwt_required()
+def api_obtener_generos():
+    tipo_material = request.args.get("tipo_material") or request.args.get("tipo")
+    if not tipo_material:
+        return jsonify({"msg": "Falta el parámetro tipo_material"}), 400
+
+    generos = genero_service.obtener_generos_por_tipo(tipo_material)
+    if generos is None:
+        return jsonify({"msg": "Error al obtener géneros"}), 500
+
+    if len(generos) > 0 and isinstance(generos[0], dict):
+        generos_list = [{"id_genero": g["id_genero"], "nombre_genero": g["nombre_genero"]} for g in generos]
+    else:
+        generos_list = [{"id_genero": g[0], "nombre_genero": g[1]} for g in generos]
+    return jsonify(generos_list), 200  # <-- solo la lista, no un dict
 
 
 
