@@ -7,6 +7,7 @@ import services.admin_service as admin_service
 import controller.usuario_controller as usuario_controller
 import controller.admin_controller as admin_controller
 import services.genero_service as genero_service
+import services.usuario_service as usuario_service
 import stripe
 import git
 import os
@@ -141,6 +142,33 @@ def protected():
 @app.route("/api_registrarusuario", methods=["POST"])
 def register():
     return usuario_controller.registrarUsuario()
+
+@app.route("/api_actualizar_contraseña", methods=["POST"])
+def cambiar_contraseña():
+    data = request.json
+    if not data or "email_user" not in data or "nueva_contrasena" not in data:
+        return jsonify({"code": 1, "msg": "Datos de actualización no proporcionados"}), 400
+    email_user = data["email_user"]
+    nueva_contrasena = data["nueva_contrasena"]
+    return usuario_service.actualizar_contraseña(email_user, nueva_contrasena)
+    
+    
+@app.route("/api_eliminar_solicitud_proveedor", methods=["POST"])
+@jwt_required()
+def eliminar_solicitud_proveedor():
+    data = request.json
+    if not data or "id_user" not in data:
+        return jsonify({"code": 1, "msg": "Datos de eliminación no proporcionados"}), 400
+    id_user = data["id_user"]
+    return usuario_service.eliminar_solicitud_proveedor(id_user)    
+
+@app.route("/api_eliminar_solicitud_publicacion", methods=["POST"])
+def eliminar_solicitud_publicacion():
+    data = request.json
+    if not data or "id_solicitud" not in data:
+        return jsonify({"code": 1, "msg": "Datos de eliminación no proporcionados"}), 400
+    id_solicitud = data["id_solicitud"]
+    return proveedor_service.eliminar_solicitud_publicacion(id_solicitud)
 
 @app.route("/api_registrar_administrador", methods=["POST"])
 @jwt_required()

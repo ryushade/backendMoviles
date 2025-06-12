@@ -36,7 +36,7 @@ def obtener_usuario_data_manga(email):
                     """
                     SELECT 
                         CONCAT(l.nom_lec, ' ', l.apellidos_lec) AS nombre_completo, 
-                        u.email,
+                        u.email, u.id_rol,
                         u.proveedor_solicitud
                     FROM lector l
                     INNER JOIN usuario u ON l.id_user = u.id_user
@@ -47,6 +47,7 @@ def obtener_usuario_data_manga(email):
             return {
                 "nombre": usuario['nombre_completo'],  
                 "email": usuario['email'],
+                "id_rol": usuario['id_rol'],
                 "proveedor_solicitud": usuario['proveedor_solicitud'] == 1  # convierte a booleano
             }
         return None
@@ -83,3 +84,44 @@ def registrar_usuario(email_user, pass_user, id_rol, proveedor_solicitud=False, 
     except Exception as e:
         print("Error:", e)
         return None
+    
+    
+def actualizar_contraseña(email_user, nueva_contrasena):
+    try:
+        with db.obtener_conexion() as conexion:
+            with conexion.cursor() as cursor:
+                cursor.execute(
+                    """
+                    UPDATE usuario 
+                    SET pass = %s 
+                    WHERE email = %s
+                    """,
+                    (nueva_contrasena, email_user)
+                )
+            conexion.commit()
+        return True
+    except Exception as e:
+        print("Error al actualizar la contraseña:", e)
+        return False
+
+def eliminar_solicitud_proveedor(id_user):
+    try:
+        with db.obtener_conexion() as conexion:
+            with conexion.cursor() as cursor:
+                cursor.execute(
+                    """
+                    UPDATE usuario
+                    SET proveedor_solicitud = 0, proveedor_fecha_solicitud = NULL
+                    WHERE id_user = %s
+                    """, (id_user,)
+                )
+                conexion.commit()
+
+                if cursor.rowcount == 0:
+                    return {"code": 1, "msg": "Usuario no encontrado"}, 404
+
+                return {"code": 0, "msg": "Solicitud de proveedor eliminada correctamente."}, 200
+    except Exception as e:
+        print("Error:", e)
+        return {"code": 1, "msg": "Error interno del servidor"}, 500
+    

@@ -151,9 +151,30 @@ def editar_solicitud_publicacion(data):
     except Exception as e:
         print("Error al editar solicitud:", e)
         return {"code": 1, "msg": "Error interno del servidor"}, 500
+    
+def eliminar_solicitud_publicacion(id_solicitud):
+    try:
+        with db.obtener_conexion() as conexion:
+            with conexion.cursor() as cursor:
+                cursor.execute(
+                    """
+                    DELETE FROM solicitud_publicacion
+                    WHERE id_solicitud = %s
+                    """, (id_solicitud,))
+                conexion.commit()
+
+                if cursor.rowcount == 0:
+                    return {"code": 1, "msg": "Solicitud no encontrada"}, 404
+
+                return {"code": 0, "msg": "Solicitud eliminada correctamente."}, 200
+
+    except Exception as e:
+        print("Error al eliminar solicitud:", e)
+        return {"code": 1, "msg": "Error interno del servidor"}, 500    
 
 
 
+            
 
 
 
