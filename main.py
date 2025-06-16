@@ -4,6 +4,7 @@ import db.database as db
 import controller.auth_controller as auth_controller
 import services.proveedor_service as proveedor_service
 import services.admin_service as admin_service
+import services.solicitud_service as solicitud_service
 import controller.usuario_controller as usuario_controller
 import controller.admin_controller as admin_controller
 import services.genero_service as genero_service
@@ -123,6 +124,19 @@ def upload_zip():
 
     url = f"{request.host_url}static/uploads/zips/{filename}"
     return jsonify({"url": url}), 200
+
+@app.route("/solicitudes/<int:id>/chapters", methods=["GET"])
+@jwt_required()
+def api_listar_capitulos(id):
+    resp, status = solicitud_service.listar_capitulos(id)
+    return jsonify(resp), status
+
+@app.route("/solicitudes/<int:id>/chapters/<chapter>/pages", methods=["GET"])
+@jwt_required()
+def api_listar_paginas(id, chapter):
+    resp, status = solicitud_service.listar_paginas(id, chapter)
+    return jsonify(resp), status
+
 
 @app.route('/api_test', methods=['GET'])
 def api_test():
