@@ -121,10 +121,12 @@ def obtener_solicitud_publicacion():
                     SELECT sp.id_solicitud, u.email, sp.titulo, sp.autores,
                             sp.tipo,
                            sp.anio_publicacion, sp.precio_volumen, sp.restriccion_edad,
-                           sp.editorial, sp.genero_principal, sp.descripcion,
+                           g.nombre_genero AS genero_principal,
+                           sp.editorial, sp.descripcion,
                            sp.url_portada, sp.url_zip, sp.fecha_solicitud
                     FROM solicitud_publicacion sp
                     INNER JOIN usuario u ON sp.id_user = u.id_user
+                    LEFT JOIN genero g ON sp.id_genero = g.id_genero
                     WHERE sp.estado = 'pendiente'
                     """
                 )
@@ -165,13 +167,26 @@ def obtener_solicitud_publicacion_por_id(id_solicitud):
             with conexion.cursor(DictCursor) as cursor:
                 cursor.execute(
                     """
-                    SELECT sp.id_solicitud, u.email, sp.titulo, sp.autores,
-                           sp.tipo, sp.anio_publicacion, sp.precio_volumen, sp.restriccion_edad,
-                           sp.editorial, sp.genero_principal, sp.descripcion,
-                           sp.url_portada, sp.url_zip, sp.fecha_solicitud
+                    SELECT 
+                        sp.id_solicitud, 
+                        u.email, 
+                        sp.titulo, 
+                        sp.autores,
+                        sp.tipo, 
+                        sp.anio_publicacion, 
+                        sp.precio_volumen, 
+                        sp.restriccion_edad,
+                        sp.editorial, 
+                        g.nombre_genero AS genero_principal,
+                        sp.descripcion,
+                        sp.url_portada, 
+                        sp.url_zip, 
+                        sp.fecha_solicitud
                     FROM solicitud_publicacion sp
                     INNER JOIN usuario u ON sp.id_user = u.id_user
-                    WHERE sp.id_solicitud = %s AND sp.estado = 'pendiente'
+                    LEFT JOIN genero g ON sp.id_genero = g.id_genero
+                    WHERE sp.id_solicitud = %s AND sp.estado = 'pendiente';
+
                     """,
                     (id_solicitud,)
                 )
