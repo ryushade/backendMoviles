@@ -131,6 +131,12 @@ def api_listar_capitulos(id):
     resp, status = solicitud_service.listar_capitulos(id)
     return jsonify(resp), status
 
+@app.route("/solicitudes/<int:id>/<chapter>/<filename>")
+def serve_chapter_page(id, chapter, filename):
+    from services.solicitud_service import serve_chapter_page as handler
+    return handler(id, chapter, filename)
+
+
 @app.route("/solicitudes/<int:id>/chapters/<chapter>/pages", methods=["GET"])
 @jwt_required()
 def api_listar_paginas(id, chapter):

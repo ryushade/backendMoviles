@@ -16,7 +16,7 @@ RULES_FILE        = os.path.join(BASE_DIR, "rules.yml")    # opcional
 RESET_THRESHOLD   = 5      # página ≤5 tras ≥8 → nuevo capítulo
 MIN_PAGES_CHAP    = 8
 ORPHAN_TOLERANCE  = 0.03   # 3 %
-ENABLE_OCR        = True  # actívalo si tienes tesseract instalado
+ENABLE_OCR        = False  # actívalo si tienes tesseract instalado
 
 if ENABLE_OCR:
     import cv2, pytesseract, numpy as np
