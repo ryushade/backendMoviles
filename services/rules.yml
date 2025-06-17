@@ -1,0 +1,32 @@
+# ───────────────
+# REGLAS LÉXICAS
+# Cada regla necesita:
+#   id:     nombre único (solo para logging)
+#   regex:  patrón con grupos ?P<chap> y ?P<page>
+# El orden es importante: la primera coincidencia se usa.
+# ───────────────
+
+# 1. Carpeta «c001/p001.jpg»
+- id: dir_style
+  regex: 'c(?P<chap>\d{3})/p?(?P<page>\d{1,3})\.[a-z]+$'
+
+# 2. Dos números «001-05.jpg» o «001_05.png»
+- id: two_numbers
+  regex: '(?P<chap>\d{3})[-_](?P<page>\d{2,3})\.[a-z]+$'
+
+# 3. Variante DN «DN-ch005-p12.png» o «DN-ch05-12.jpg»
+- id: dn_ch_variant
+  regex: 'DN[-_]?ch(?P<chap>\d{2,3})[-_]p?(?P<page>\d{2,3})\.[a-z]+$'
+
+# 4. Título + volumen «DeathNote-01-005-12.jpg»
+#    (se ignora el volumen; solo extrae capítulo y página)
+- id: title_vol
+  regex: '[A-Za-z]+[-_]\d{2}[-_](?P<chap>\d{3})[-_](?P<page>\d{2,3})\.[a-z]+$'
+
+# 5. Genérico «Cap005_Page012.png»
+- id: cap_page
+  regex: 'cap(?P<chap>\d{2,3})[_-]?page(?P<page>\d{2,3})\.[a-z]+$'
+
+# 6. Carpeta por capítulo con nombre libre «Chapter 5/p012.png»
+- id: free_dir
+  regex: '[Cc]h(?:apter)?[ _-]?(?P<chap>\d{1,3})/p?(?P<page>\d{1,3})\.[a-z]+$'

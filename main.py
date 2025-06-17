@@ -275,6 +275,15 @@ def obtener_solicitud_historieta():
 def obtener_usuario_data():
     return usuario_controller.obtener_usuario_data()
 
+@app.route("/api_solicitud_publicacion/<int:id_solicitud>", methods=["GET"])
+@jwt_required()
+def obtener_solicitud_historieta_por_id(id_solicitud):
+    resultado = admin_service.obtener_solicitud_publicacion_por_id(id_solicitud)
+    if resultado:
+        return jsonify(resultado), 200
+    else:
+        return jsonify({"msg": "Solicitud no encontrada o no está pendiente"}), 404
+
 
 @app.route('/api_obtener_dni_lec', methods=['POST'])
 def obtener_dni_lec():
@@ -305,6 +314,8 @@ def obtener_dni_lec():
 def home():
     valor = "Grupo 01"
     return f"<p>Bienvenido, {valor}</p>"
+
+
 
 
 #! Iniciar el servidor
