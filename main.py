@@ -8,6 +8,7 @@ import services.solicitud_service as solicitud_service
 import controller.usuario_controller as usuario_controller
 import controller.admin_controller as admin_controller
 import services.genero_service as genero_service
+import services.publicacion_service as publicacion_service
 import services.usuario_service as usuario_service
 import stripe
 import git
@@ -143,6 +144,29 @@ def api_listar_paginas(id, chapter):
     resp, status = solicitud_service.listar_paginas(id, chapter)
     return jsonify(resp), status
 
+@app.route("/api_aprobar_publicacion", methods=["POST"])
+@jwt_required()
+def api_aprobar_publicacion():
+    # 1) Obtener al usuario autenticado
+    email_admin = get_jwt_identity()          # tu JWT guarda el email
+    if not email_admin:
+        return jsonify({"msg": "No autenticado"}), 401
+
+    # 2) Verificar que es administrador
+    id_admin = admin_service.obtener_id_admin_por_email(email_admin)
+    if id_admin is None:
+        return jsonify({"msg": "No autorizado – se requiere rol ADMIN"}), 403
+
+    # 3) Extraer id_solicitud del body JSON
+    data = request.get_json(silent=True) or {}
+    id_solicitud = data.get("id_solicitud", type=int)
+    if not id_solicitud:
+        return jsonify({"msg": "Falta id_solicitud"}), 400
+
+    # 4) Llamar al nuevo servicio (publicacion_service)
+    resp, status = publicacion_service.aprobar_solicitud(id_solicitud, id_admin)
+    return jsonify(resp), status
+
 
 @app.route('/api_test', methods=['GET'])
 def api_test():
@@ -232,13 +256,13 @@ def insertar_solicitud():
         return jsonify({"code": 1, "msg": "Datos de solicitud no proporcionados"}), 400
     return proveedor_service.registrar_solicitud(data)
 
-@app.route("/api_aprobar_publicacion", methods=["POST"])
-@jwt_required()
-def aprobar_publicacion():
-    data = request.json
-    if not data or "id_solicitud" not in data or "id_admin" not in data:
-        return jsonify({"code": 1, "msg": "Datos de aprobación no proporcionados"}), 400
-    return admin_service.aprobar_publicacion(data["id_solicitud"], data["id_admin"])
+# @app.route("/api_aprobar_publicacion", methods=["POST"])
+# @jwt_required()
+# def aprobar_publicacion():
+#     data = request.json
+#     if not data or "id_solicitud" not in data or "id_admin" not in data:
+#         return jsonify({"code": 1, "msg": "Datos de aprobación no proporcionados"}), 400
+#     return admin_service.aprobar_publicacion(data["id_solicitud"], data["id_admin"])
 
 
 @app.route("/api_obtener_generos", methods=["GET"])
