@@ -9,6 +9,7 @@ import controller.usuario_controller as usuario_controller
 import controller.admin_controller as admin_controller
 import services.genero_service as genero_service
 import services.publicacion_service as publicacion_service
+import services.lector_vol_service as vol_srv
 import services.historieta_service as hist_srv
 import services.usuario_service as usuario_service
 import stripe
@@ -192,6 +193,31 @@ def api_mas_vendidas():
 def api_por_genero(id_genero):
     data = hist_srv.por_genero(id_genero)
     return jsonify(data), 200
+
+
+@app.route("/volumenes/<int:id_vol>", methods=["GET"])
+@jwt_required()
+def api_ficha(id_vol):
+    data, st = vol_srv.ficha_volumen(id_vol)
+    return jsonify(data), st
+
+# capítulos y páginas
+@app.route("/volumenes/<int:id_vol>/chapters", methods=["GET"])
+@jwt_required()
+def api_caps(id_vol):
+    resp, st = vol_srv.listar_capitulos(id_vol)
+    return jsonify(resp), st
+
+@app.route("/volumenes/<int:id_vol>/chapters/<chapter>/pages", methods=["GET"])
+@jwt_required()
+def api_pages(id_vol, chapter):
+    resp, st = vol_srv.listar_paginas(id_vol, chapter)
+    return jsonify(resp), st
+
+# imágenes
+@app.route("/volumenes/<int:id>/<chapter>/<filename>")
+def srv_vol_page(id, chapter, filename):
+    return vol_srv.serve_page(id, chapter, filename)
 
 
 @app.route('/api_test', methods=['GET'])
