@@ -35,7 +35,7 @@ def aprobar_proveedor(id_user, id_rol_proveedor=2):
     except Exception as e:
         print("Error al aprobar proveedor:", e)
         return False
-    
+
 def rechazar_proveedor(id_user):
     try:
         with db.obtener_conexion() as conexion:
@@ -111,7 +111,7 @@ def obtener_proveedor_por_id(id_user):
     except Exception as e:
         print("Error al obtener proveedor:", e)
         return None
-    
+
 def obtener_solicitud_publicacion():  
     try: 
         with db.obtener_conexion() as conexion:
@@ -156,7 +156,7 @@ def obtener_solicitud_publicacion():
     except Exception as e:
         print("Error al obtener solicitudes de publicación:", e)
         return []
-    
+
 def obtener_solicitud_publicacion_por_id(id_solicitud):
     """
     Devuelve los detalles de una sola solicitud de publicación por su ID,
@@ -211,7 +211,7 @@ def obtener_solicitud_publicacion_por_id(id_solicitud):
     except Exception as e:
         print("Error al obtener solicitud de publicación por ID:", e)
         return None
-    
+
 
 def obtener_solicitudes_proveedor():
     try:
@@ -246,9 +246,6 @@ def obtener_solicitudes_proveedor():
         print("Error al obtener solicitudes de proveedor:", e)
         return []
 
-
-    
-
 def agregar_administrador(id_user, id_rol=3):
     try:
         with db.obtener_conexion() as conexion:
@@ -265,7 +262,6 @@ def agregar_administrador(id_user, id_rol=3):
     except Exception as e:
         print("Error: ", e)
         return {"success": False, "message": f"Error: {e}"}
-
 
 def obtener_id_admin_por_email(email):
     try:
