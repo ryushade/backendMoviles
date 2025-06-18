@@ -231,11 +231,13 @@ def api_listar_carrito():
 @app.route("/carrito/agregar", methods=["POST"])
 @jwt_required()
 def api_agregar_carrito():
-    data     = request.json or {}
-    id_user  = get_jwt_identity()
-    id_hist  = data.get("id_historieta")
-    cant     = data.get("cantidad", 1)
-    resp, st = carrito_service.agregar_al_carrito(id_user, id_hist, cant)
+    data        = request.json or {}
+    id_user     = get_jwt_identity()
+    id_volumen  = data.get("id_volumen")  # <-- Cambia aquí
+    cant        = data.get("cantidad", 1)
+    if not id_volumen:
+        return jsonify({"msg": "Falta id_volumen"}), 400
+    resp, st = carrito_service.agregar_al_carrito(id_user, id_volumen, cant)
     return jsonify(resp), st
 
 

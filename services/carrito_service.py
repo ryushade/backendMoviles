@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 import datetime
 from typing import Tuple, List, Dict, Union
@@ -16,7 +15,7 @@ def _resolve_user_id(user: Union[int, str]) -> int:
     # Buscar id_user por email
     with db.obtener_conexion() as cn, cn.cursor(DictCursor) as cur:
         cur.execute(
-            "SELECT id_user FROM usuario WHERE email_user=%s",
+            "SELECT id_user FROM usuario WHERE email=%s",
             (user,)
         )
         row = cur.fetchone()
@@ -41,6 +40,7 @@ def _obtener_o_crear_carrito(user: Union[int, str]) -> int:
             "INSERT INTO carrito (id_user, fecha_creacion) VALUES (%s, %s)",
             (id_user, datetime.datetime.now())
         )
+        cn.commit()  # <-- Agrega este commit
         return cur.lastrowid
 
 
