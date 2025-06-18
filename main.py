@@ -10,6 +10,7 @@ import controller.admin_controller as admin_controller
 import services.genero_service as genero_service
 import services.publicacion_service as publicacion_service
 import services.lector_vol_service as vol_srv
+import services.carrito_service as carrito_service
 import services.historieta_service as hist_srv
 import services.usuario_service as usuario_service
 import stripe
@@ -216,6 +217,54 @@ def api_pages(id_vol, chapter):
 def srv_vol_page(id, chapter, filename):
     return vol_srv.serve_page(id, chapter, filename)
 
+
+@app.route("/carrito", methods=["GET"])
+@jwt_required()
+def api_listar_carrito():
+    id_user = get_jwt_identity()           # según tu auth
+    resp, status = carrito_service.listar_carrito(id_user)
+    return jsonify(resp), status
+
+
+@app.route("/carrito/agregar", methods=["POST"])
+@jwt_required()
+def api_agregar_carrito():
+    data     = request.json or {}
+    id_user  = get_jwt_identity()
+    id_hist  = data.get("id_historieta")
+    cant     = data.get("cantidad", 1)
+    resp, st = carrito_service.agregar_al_carrito(id_user, id_hist, cant)
+    return jsonify(resp), st
+
+
+@app.route("/carrito/item", methods=["PUT"])
+@jwt_required()
+def api_actualizar_cantidad():
+    d        = request.json or {}
+    id_user  = get_jwt_identity()
+    resp, st = carrito_service.actualizar_cantidad(
+        id_user,
+        d.get("id_historieta"),
+        d.get("cantidad", 1)
+    )
+    return jsonify(resp), st
+
+
+@app.route("/carrito/item", methods=["DELETE"])
+@jwt_required()
+def api_eliminar_item():
+    id_user  = get_jwt_identity()
+    id_hist  = request.args.get("id_historieta", type=int)
+    resp, st = carrito_service.eliminar_item(id_user, id_hist)
+    return jsonify(resp), st
+
+
+@app.route("/carrito/vaciar", methods=["POST"])
+@jwt_required()
+def api_vaciar_carrito():
+    id_user  = get_jwt_identity()
+    resp, st = carrito_service.vaciar_carrito(id_user)
+    return jsonify(resp), st
 
 @app.route('/api_test', methods=['GET'])
 def api_test():
