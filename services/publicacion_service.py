@@ -45,7 +45,7 @@ def aprobar_solicitud(id_solicitud: int, id_admin: int):
                         "msg": "Solicitud no encontrada o ya procesada"}, 404
 
             # 2) Tx explícita
-            cn.start_transaction()
+           
 
             # 3) Historieta
             cur.execute("""
@@ -81,12 +81,17 @@ def aprobar_solicitud(id_solicitud: int, id_admin: int):
 
             # 5) Autores (coma-separado)
             for nombre in (a.strip() for a in row["autores"].split(",") if a.strip()):
-                cur.execute("SELECT id_autor FROM autor WHERE nombre_autor=%s", (nombre,))
+                cur.execute("SELECT id_aut FROM autor WHERE nom_aut=%s", (nombre,))
                 res = cur.fetchone()
-                id_autor = res["id_autor"] if res else (
-                    cur.execute("INSERT INTO autor(nombre_autor) VALUES(%s)", (nombre,)),
-                    cur.lastrowid
-                )[1]
+                if res:
+                    id_autor = res["id_aut"]
+                else:
+                    # Inserta nombre y apellido paterno vacío
+                    cur.execute(
+                        "INSERT INTO autor(nom_aut, apePat_aut) VALUES(%s, %s)",
+                        (nombre, "")
+                    )
+                    id_autor = cur.lastrowid
                 cur.execute("""
                     INSERT IGNORE INTO historieta_autor(id_historieta, id_autor)
                     VALUES (%s,%s)
@@ -103,10 +108,9 @@ def aprobar_solicitud(id_solicitud: int, id_admin: int):
                 UPDATE solicitud_publicacion
                    SET estado='aprobado',
                        id_historieta_creada=%s,
-                       id_admin_aprobador=%s,
                        fecha_respuesta = NOW()
                  WHERE id_solicitud=%s
-            """, (id_hist, id_admin, id_solicitud))
+            """, (id_hist, id_solicitud))
 
             cn.commit()
 
@@ -139,14 +143,20 @@ def _precalentar_volumen(id_solicitud: int):
     instante.  Re-utiliza _warm_cache() del módulo de solicitudes.
     """
     try:
-        cat = _catalog(id_solicitud)  # {capítulo: [lista archivos]}
-        for chap, files in cat.items():
-            for f in files:
-                _warm_cache(id_solicitud, chap,
-                            os.path.basename(f))  # genera/guarda JPEG
-        current_app.logger.info("Caché precalentada para solicitud %s", id_solicitud)
-
+        # Obtener la app de Flask
+        from flask import current_app
+        app = current_app._get_current_object()
+        with app.app_context():
+            cat = _catalog(id_solicitud)  # {capítulo: [lista archivos]}
+            for chap, files in cat.items():
+                for f in files:
+                    _warm_cache(id_solicitud, chap, os.path.basename(f))
+            current_app.logger.info("Caché precalentada para solicitud %s", id_solicitud)
     except Exception as exc:
-        current_app.logger.warning(
-            "Precalentamiento solicitud %s falló: %s", id_solicitud, exc
-        )
+        # Usar print como fallback si no hay contexto
+        try:
+            current_app.logger.warning(
+                "Precalentamiento solicitud %s falló: %s", id_solicitud, exc
+            )
+        except Exception:
+            print(f"Precalentamiento solicitud {id_solicitud} falló: {exc}")

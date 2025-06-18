@@ -159,7 +159,11 @@ def api_aprobar_publicacion():
 
     # 3) Extraer id_solicitud del body JSON
     data = request.get_json(silent=True) or {}
-    id_solicitud = data.get("id_solicitud", type=int)
+    id_solicitud = data.get("id_solicitud")
+    try:
+        id_solicitud = int(id_solicitud)
+    except (TypeError, ValueError):
+        return jsonify({"msg": "Falta id_solicitud válido"}), 400
     if not id_solicitud:
         return jsonify({"msg": "Falta id_solicitud"}), 400
 
