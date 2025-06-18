@@ -1,6 +1,6 @@
 from __future__ import annotations
 import datetime
-from typing import Tuple, List, Dict, Union
+from typing import Tuple, Dict, Union
 
 from pymysql.cursors import DictCursor
 import db.database as db
@@ -12,7 +12,6 @@ def _resolve_user_id(user: Union[int, str]) -> int:
     """
     if isinstance(user, int):
         return user
-    # Buscar id_user por email
     with db.obtener_conexion() as cn, cn.cursor(DictCursor) as cur:
         cur.execute(
             "SELECT id_user FROM usuario WHERE email=%s",
@@ -26,7 +25,7 @@ def _resolve_user_id(user: Union[int, str]) -> int:
 
 def _obtener_o_crear_carrito(user: Union[int, str]) -> int:
     """
-    Devuelve el id_carrito activo del usuario (email o id), creando uno si no existe.
+    Devuelve el id_carrito activo del usuario, creando uno si no existe.
     """
     id_user = _resolve_user_id(user)
     with db.obtener_conexion() as cn, cn.cursor(DictCursor) as cur:
@@ -40,8 +39,21 @@ def _obtener_o_crear_carrito(user: Union[int, str]) -> int:
             "INSERT INTO carrito (id_user, fecha_creacion) VALUES (%s, %s)",
             (id_user, datetime.datetime.now())
         )
-        cn.commit()  # <-- Agrega este commit
+        cn.commit()
         return cur.lastrowid
+
+
+def _item_en_carrito(user: Union[int, str], id_volumen: int) -> bool:
+    """
+    Verifica si el volumen ya está en el carrito del usuario.
+    """
+    id_carrito = _obtener_o_crear_carrito(user)
+    with db.obtener_conexion() as cn, cn.cursor(DictCursor) as cur:
+        cur.execute(
+            "SELECT 1 FROM detalle_carrito WHERE id_detalle_carrito=%s AND id_volumen=%s LIMIT 1",
+            (id_carrito, id_volumen)
+        )
+        return cur.fetchone() is not None
 
 
 def agregar_al_carrito(
@@ -51,10 +63,14 @@ def agregar_al_carrito(
 ) -> Tuple[Dict, int]:
     """
     Agrega 'cantidad' unidades del volumen al carrito del usuario.
-    Si ya existe, suma la cantidad.
+    Si el volumen ya está en el carrito, devuelve error.
     """
     if cantidad < 1:
         return {"code": 1, "msg": "Cantidad debe ser ≥1"}, 400
+
+    # Verificar si ya existe en carrito
+    if _item_en_carrito(user, id_volumen):
+        return {"code": 2, "msg": "Este volumen ya está en tu carrito"}, 400
 
     id_carrito = _obtener_o_crear_carrito(user)
     with db.obtener_conexion() as cn, cn.cursor() as cur:
@@ -63,8 +79,6 @@ def agregar_al_carrito(
             INSERT INTO detalle_carrito
                (id_detalle_carrito, id_volumen, cantidad)
             VALUES (%s, %s, %s)
-            ON DUPLICATE KEY UPDATE
-              cantidad = cantidad + VALUES(cantidad)
             """,
             (id_carrito, id_volumen, cantidad)
         )
@@ -90,8 +104,8 @@ def actualizar_cantidad(
             )
         else:
             cur.execute(
-                "UPDATE detalle_carrito SET cantidad=%s"
-                " WHERE id_detalle_carrito=%s AND id_volumen=%s",
+                "UPDATE detalle_carrito SET cantidad=%s "
+                "WHERE id_detalle_carrito=%s AND id_volumen=%s",
                 (cantidad, id_carrito, id_volumen)
             )
         cn.commit()
@@ -134,14 +148,14 @@ def listar_carrito(
             """
             SELECT dc.id_volumen,
                    v.titulo_volumen,
-                   h.titulo            AS historieta,
+                   h.titulo       AS historieta,
                    h.portada_url,
                    dc.cantidad,
-                   v.precio_venta      AS precio_unit
+                   v.precio_venta AS precio_unit
               FROM detalle_carrito dc
-              JOIN volumen    v ON v.id_volumen=dc.id_volumen
-              JOIN historieta h ON h.id_historieta=v.id_historieta
-             WHERE dc.id_detalle_carrito=%s
+              JOIN volumen    v ON v.id_volumen = dc.id_volumen
+              JOIN historieta h ON h.id_historieta = v.id_historieta
+             WHERE dc.id_detalle_carrito = %s
             """,
             (id_carrito,)
         )
