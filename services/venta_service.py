@@ -1,17 +1,4 @@
-# services/venta_service.py
-# ----------------------------------------------------------------------
-#  Gestiona las ventas y su detalle (historietas compradas)
-# ----------------------------------------------------------------------
-#  • crear_venta(id_user, carrito)   →  id de la venta creada
-#  • obtener_ventas(id_user)        →  listado resumido de las ventas
-#  • obtener_detalle(id_ven)        →  detalle con las historietas
-# ----------------------------------------------------------------------
-#  Estructura de «carrito» que envía el cliente:
-#  [
-#      {"id_historieta": 5, "precio": 4.99, "cantidad": 1},
-#      {"id_historieta": 9, "precio": 3.50, "cantidad": 2}
-#  ]
-# ----------------------------------------------------------------------
+
 
 from __future__ import annotations
 from typing import List, Dict, Tuple
@@ -20,17 +7,7 @@ from pymysql.cursors import DictCursor
 import db.database as db
 
 
-# ──────────────────────────────────────────────────────────────────────
-#  ALTA DE VENTA
-# ──────────────────────────────────────────────────────────────────────
 def crear_venta(id_user: int, carrito: List[Dict]) -> int:
-    """
-    Inserta cabecera + líneas en una transacción.
-    Devuelve el id_ven generado.
-
-    :param id_user:   comprador
-    :param carrito:   lista de dicts con id_historieta, precio, cantidad
-    """
     if not carrito:
         raise ValueError("carrito vacío")
 

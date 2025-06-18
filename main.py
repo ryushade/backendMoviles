@@ -484,17 +484,17 @@ def api_detalle_venta(id_ven: int):
         return jsonify({"code": 1, "msg": "Error interno"}), 500        
     
     
-@app.route("/payment-sheet", methods=["POST"])
-@jwt_required()                           # o la protección que uses
-def api_payment_sheet():
-    data  = request.get_json(force=True)
-    total = int(data.get("amount_cents", 0))
-    email = get_jwt_identity()            #  ← o data["email"]
-    try:
-        payload = stripe_service.generar_payment_sheet(total, email)
-        return jsonify(payload), 200
-    except Exception as exc:
-        return jsonify(msg=str(exc)), 400    
+# @app.route("/payment-sheet", methods=["POST"])
+# @jwt_required()                           # o la protección que uses
+# def api_payment_sheet():
+#     data  = request.get_json(force=True)
+#     total = int(data.get("amount_cents", 0))
+#     email = get_jwt_identity()            #  ← o data["email"]
+#     try:
+#         payload = stripe_service.generar_payment_sheet(total, email)
+#         return jsonify(payload), 200
+#     except Exception as exc:
+#         return jsonify(msg=str(exc)), 400    
 
 @app.route("/")
 def home():
