@@ -181,11 +181,11 @@ def api_novedades():
     return jsonify(data), 200
 
 
-@app.route("/historietas/mas_vendidas", methods=["GET"])
-@jwt_required()
-def api_mas_vendidas():
-    data = hist_srv.mas_vendidas()
-    return jsonify(data), 200
+# @app.route("/historietas/mas_vendidas", methods=["GET"])
+# @jwt_required()
+# def api_mas_vendidas():
+#     data = hist_srv.mas_vendidas()
+#     return jsonify(data), 200
 
 
 @app.route("/historietas/genero/<int:id_genero>", methods=["GET"])
@@ -196,20 +196,17 @@ def api_por_genero(id_genero):
 
 
 @app.route("/volumenes/<int:id_vol>", methods=["GET"])
-@jwt_required()
 def api_ficha(id_vol):
     data, st = vol_srv.ficha_volumen(id_vol)
     return jsonify(data), st
 
 # capítulos y páginas
 @app.route("/volumenes/<int:id_vol>/chapters", methods=["GET"])
-@jwt_required()
 def api_caps(id_vol):
     resp, st = vol_srv.listar_capitulos(id_vol)
     return jsonify(resp), st
 
 @app.route("/volumenes/<int:id_vol>/chapters/<chapter>/pages", methods=["GET"])
-@jwt_required()
 def api_pages(id_vol, chapter):
     resp, st = vol_srv.listar_paginas(id_vol, chapter)
     return jsonify(resp), st
