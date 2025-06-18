@@ -15,7 +15,7 @@ def crear_venta(id_user: int, carrito: List[Dict]) -> int:
         cn.start_transaction()
 
         # 1) Cabecera
-        cur.execute(
+        cur.execute( 
             "INSERT INTO venta (id_user, estado_ven) VALUES (%s, 1)",
             (id_user,)
         )
