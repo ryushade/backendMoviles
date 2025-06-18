@@ -57,6 +57,7 @@ def is_valid_signature(x_hub_signature, data):
     mac = hmac.new(WEBHOOK_SECRET, msg=data, digestmod=hashlib.sha1)
     return hmac.compare_digest(mac.hexdigest(), signature)
 
+
 @app.route('/update_server', methods=['POST'])
 def update_server():
     signature = request.headers.get('X-Hub-Signature')
