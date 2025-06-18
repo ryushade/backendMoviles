@@ -9,6 +9,7 @@ import controller.usuario_controller as usuario_controller
 import controller.admin_controller as admin_controller
 import services.genero_service as genero_service
 import services.publicacion_service as publicacion_service
+import services.historieta_service as hist_srv
 import services.usuario_service as usuario_service
 import stripe
 import git
@@ -170,6 +171,27 @@ def api_aprobar_publicacion():
     # 4) Llamar al nuevo servicio (publicacion_service)
     resp, status = publicacion_service.aprobar_solicitud(id_solicitud, id_admin)
     return jsonify(resp), status
+
+
+@app.route("/historietas/novedades", methods=["GET"])
+@jwt_required()
+def api_novedades():
+    data = hist_srv.novedades()
+    return jsonify(data), 200
+
+
+@app.route("/historietas/mas_vendidas", methods=["GET"])
+@jwt_required()
+def api_mas_vendidas():
+    data = hist_srv.mas_vendidas()
+    return jsonify(data), 200
+
+
+@app.route("/historietas/genero/<int:id_genero>", methods=["GET"])
+@jwt_required()
+def api_por_genero(id_genero):
+    data = hist_srv.por_genero(id_genero)
+    return jsonify(data), 200
 
 
 @app.route('/api_test', methods=['GET'])
