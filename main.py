@@ -9,6 +9,8 @@ import controller.usuario_controller as usuario_controller
 import controller.admin_controller as admin_controller
 import services.genero_service as genero_service
 import services.publicacion_service as publicacion_service
+import services.stripe_service as stripe_service
+import services.venta_service as venta_service
 import services.lector_vol_service as vol_srv
 import services.carrito_service as carrito_service
 import services.historieta_service as hist_srv
@@ -437,6 +439,62 @@ def obtener_dni_lec():
             return jsonify({"code": 1, "msg": "No se encontró el dni_lec para el correo proporcionado"}), 404
     except Exception as e:
         return jsonify({"code": 1, "msg": f"Error al obtener el dni_lec: {str(e)}"}), 500
+    
+    
+@app.route("/api_guardar_venta", methods=["POST"])
+@jwt_required()
+def api_guardar_venta():
+    try:
+        data = request.get_json(force=True)
+        carrito = data.get("carrito", [])
+        total   = float(data.get("total", 0))
+
+        if not carrito:
+            return jsonify({"code": 1, "msg": "Carrito vacío"}), 400
+
+        # id_user viene del token JWT
+        id_user = venta_service.id_usuario_from_jwt()
+        resp, status = venta_service.crear_venta(id_user, carrito, total)
+        return jsonify(resp), status
+
+    except Exception as exc:
+        current_app.logger.exception("api_guardar_venta")
+        return jsonify({"code": 1, "msg": "Error interno"}), 500
+    
+@app.route("/api_mis_compras", methods=["GET"])
+@jwt_required()
+def api_mis_compras():
+    try:
+        id_user = venta_service.id_usuario_from_jwt()
+        resp, status = venta_service.obtener_ventas_usuario(id_user)
+        return jsonify(resp), status
+    except Exception:
+        current_app.logger.exception("api_mis_compras")
+        return jsonify({"code": 1, "msg": "Error interno"}), 500
+    
+@app.route("/api_venta/<int:id_ven>", methods=["GET"])
+@jwt_required()
+def api_detalle_venta(id_ven: int):
+    try:
+        id_user = venta_service.id_usuario_from_jwt()
+        resp, status = venta_service.detalle_venta(id_user, id_ven)
+        return jsonify(resp), status
+    except Exception:
+        current_app.logger.exception("api_detalle_venta")
+        return jsonify({"code": 1, "msg": "Error interno"}), 500        
+    
+    
+@app.route("/payment-sheet", methods=["POST"])
+@jwt_required()                           # o la protección que uses
+def api_payment_sheet():
+    data  = request.get_json(force=True)
+    total = int(data.get("amount_cents", 0))
+    email = get_jwt_identity()            #  ← o data["email"]
+    try:
+        payload = stripe_service.generar_payment_sheet(total, email)
+        return jsonify(payload), 200
+    except Exception as exc:
+        return jsonify(msg=str(exc)), 400    
 
 @app.route("/")
 def home():
