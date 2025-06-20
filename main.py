@@ -9,6 +9,7 @@ import controller.usuario_controller as usuario_controller
 import controller.admin_controller as admin_controller
 import services.genero_service as genero_service
 import services.publicacion_service as publicacion_service
+import services.comentario_service as comentario_service
 import services.stripe_service as stripe_service
 import services.venta_service as venta_service
 import services.lector_vol_service as vol_srv
@@ -417,6 +418,63 @@ def obtener_solicitud_historieta_por_id(id_solicitud):
         return jsonify(resultado), 200
     else:
         return jsonify({"msg": "Solicitud no encontrada o no está pendiente"}), 404
+    
+@app.route("/api_crear_comentario", methods=["POST"])
+@jwt_required()
+def crear_comentario():
+  
+    data = request.get_json(silent=True) or {}
+    id_historieta = data.get("id_historieta")
+    texto         = data.get("comentario", "").strip()
+    email    = get_jwt_identity()   # tu JWT guarda el email
+
+    # Validaciones básicas
+    if not id_historieta or not texto:
+        return jsonify({"msg": "id_historieta y comentario son obligatorios"}), 400
+
+    # 1) Recuperar id_lec a partir del email
+    try:
+        with db.obtener_conexion() as conexion:
+            with conexion.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT l.id_lec
+                      FROM lector l
+                      JOIN usuario u ON l.id_user = u.id_user
+                     WHERE u.email = %s
+                    """,
+                    (email,)
+                )
+                fila = cursor.fetchone()
+        if not fila:
+            return jsonify({"msg": "No eres un lector registrado"}), 403
+
+        id_lec = fila["id_lec"]
+    except Exception as e:
+        current_app.logger.exception("crear_comentario - get id_lec")
+        return jsonify({"msg": "Error interno al verificar lector"}), 500
+
+    # 2) Insertar el comentario
+    nuevo_id = comentario_service.publicar_comentario(
+        id_historieta, id_lec, texto
+    )
+    if nuevo_id:
+        return jsonify({"id_comentario": nuevo_id}), 201
+    else:
+        return jsonify({"msg": "Error al crear comentario"}), 500
+
+@app.route("/api_obtener_comentarios/<int:id_historieta>", methods=["GET"])
+@jwt_required()
+def get_comentarios(id_historieta):
+    try:
+        comentarios = comentario_service.obtener_comentarios(id_historieta)
+        if comentarios is not None:
+            return jsonify(comentarios), 200
+        else:
+            return jsonify({"msg": "No se encontraron comentarios"}), 404
+    except Exception as e:
+        current_app.logger.exception("Error al obtener comentarios")
+        return jsonify({"msg": "Error interno al obtener comentarios"}), 500
 
 
 @app.route('/api_obtener_dni_lec', methods=['POST'])
