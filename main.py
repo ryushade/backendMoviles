@@ -513,6 +513,13 @@ def get_comentarios(id_historieta):
     except Exception as e:
         current_app.logger.exception("Error al obtener comentarios")
         return jsonify({"msg": "Error interno al obtener comentarios"}), 500
+    
+    
+@app.route("/api/users/<int:id_user>/items", methods=["GET"])
+@jwt_required()
+def api_get_items(id_user):
+    tipo = request.args.get('type', 'purchases')  # 'purchases' o 'wishlist'
+    return usuario_service.get_items_usuario(id_user, tipo)
 
 @app.route('/api_obtener_dni_lec', methods=['POST'])
 def obtener_dni_lec():
