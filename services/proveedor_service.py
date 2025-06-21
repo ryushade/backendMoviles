@@ -19,7 +19,27 @@ def solicitar_proveedor(email):
                     return {"code": 1, "msg": "Usuario no encontrado"}, 404
 
                 return {"code": 0, "msg": "Solicitud de proveedor registrada correctamente."}, 200
+    except Exception as e:
+        print("Error en solicitar_proveedor:", e)
+        return {"code": 1, "msg": "Error interno del servidor"}, 500
 
+def cancelar_solicitud_proveedor(email):
+    try:
+        with db.obtener_conexion() as conexion:
+            with conexion.cursor() as cursor:
+                cursor.execute(
+                    """
+                    UPDATE usuario
+                    SET proveedor_solicitud = 0, proveedor_fecha_solicitud = NULL
+                    WHERE email = %s
+                    """, (email.strip(),))
+                    
+                conexion.commit()
+
+                if cursor.rowcount == 0:
+                    return {"code": 1, "msg": "Usuario no encontrado"}, 404
+
+                return {"code": 0, "msg": "Solicitud de proveedor cancelada correctamente."}, 200
     except Exception as e:
         print("Error:", e)
         return {"code": 1, "msg": "Error interno del servidor"}, 500

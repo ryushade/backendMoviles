@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, url_for, current_app
+from pymysql.cursors import DictCursor
 from flask_jwt_extended import jwt_required, JWTManager, create_access_token, get_jwt_identity
 import db.database as db
 import controller.auth_controller as auth_controller
@@ -352,6 +353,48 @@ def obtener_proveedor():
 def solicitar_proveedor():
     email = get_jwt_identity() 
     return proveedor_service.solicitar_proveedor(email)
+
+@app.route("/api_cancelar_solicitud_proveedor", methods=["PUT"])
+@jwt_required()
+def cancelar_solicitud_proveedor():
+    email = get_jwt_identity() 
+    return proveedor_service.cancelar_solicitud_proveedor(email)
+
+@app.route("/api_lista_busqueda", methods=["GET"])
+@jwt_required()
+def lista_busqueda():
+    try:
+        # Obtengo el usuario autenticado (por si lo necesitas)
+        user_identity = get_jwt_identity()
+
+        # Leo el término de búsqueda
+        q = request.args.get('q', '').strip()
+
+        with db.obtener_conexion() as conexion:
+            with conexion.cursor(DictCursor) as cursor:
+                sql = """
+                    SELECT
+                        id_historieta,
+                        titulo,
+                        descripcion,
+                        portada_url,
+                        tipo
+                    FROM historieta
+                    WHERE estado = 'aprobado'
+                      AND (titulo LIKE %s OR descripcion LIKE %s)
+                    ORDER BY fecha_creacion DESC
+                    LIMIT 15
+                """
+                like_pattern = f"%{q}%"
+                cursor.execute(sql, (like_pattern, like_pattern))
+                resultados = cursor.fetchall()
+
+        return jsonify({"success": True, "data": resultados}), 200
+
+    except Exception as e:
+        print("Error en lista_busqueda:", e)
+        return jsonify({"success": False, "message": "Error interno del servidor"}), 500
+        
 
 @app.route("/api_registrar_solicitud", methods=["POST"])
 @jwt_required()

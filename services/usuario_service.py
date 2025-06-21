@@ -2,6 +2,7 @@ import db.database as db
 from datetime import datetime
 
 
+
 def obtener_usuario(email):
     try:
         with db.obtener_conexion() as conexion:
@@ -13,6 +14,36 @@ def obtener_usuario(email):
     except Exception as e:
         print("Error: ", e)
         return None
+
+
+def get_historietas():
+    """
+    Devuelve hasta 15 historietas aprobadas para que el cliente
+    las cargue y filtre localmente en el frontend.
+    """
+    try:
+        with db.obtener_conexion() as conexion:
+            with conexion.cursor(DictCursor) as cursor:
+                cursor.execute("""
+                    SELECT
+                      id_historieta,
+                      titulo,
+                      descripcion,
+                      portada_url,
+                      tipo
+                    FROM historieta
+                    WHERE estado = 'aprobado'
+                    ORDER BY fecha_creacion DESC
+                    LIMIT 15
+                """)
+                rows = cursor.fetchall()
+
+        return {"success": True, "data": rows}, 200
+
+    except Exception as e:
+        print("Error en get_historietas:", e)
+        return {"success": False, "message": "Error interno del servidor"}, 500
+
 
 
 def obtener_usuario_id(id):
