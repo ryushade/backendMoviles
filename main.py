@@ -364,10 +364,7 @@ def cancelar_solicitud_proveedor():
 @jwt_required()
 def lista_busqueda():
     try:
-        # Obtengo el usuario autenticado (por si lo necesitas)
         user_identity = get_jwt_identity()
-
-        # Leo el término de búsqueda
         q = request.args.get('q', '').strip()
 
         with db.obtener_conexion() as conexion:
@@ -381,12 +378,12 @@ def lista_busqueda():
                         tipo
                     FROM historieta
                     WHERE estado = 'aprobado'
-                      AND (titulo LIKE %s OR descripcion LIKE %s)
+                      AND titulo LIKE %s
                     ORDER BY fecha_creacion DESC
                     LIMIT 15
                 """
                 like_pattern = f"%{q}%"
-                cursor.execute(sql, (like_pattern, like_pattern))
+                cursor.execute(sql, (like_pattern,))
                 resultados = cursor.fetchall()
 
         return jsonify({"success": True, "data": resultados}), 200
@@ -464,8 +461,7 @@ def obtener_solicitud_historieta_por_id(id_solicitud):
     
 @app.route("/api_crear_comentario", methods=["POST"])
 @jwt_required()
-def crear_comentario():
-  
+def obtener_crear_comentario():
     data = request.get_json(silent=True) or {}
     id_historieta = data.get("id_historieta")
     texto         = data.get("comentario", "").strip()
@@ -475,10 +471,10 @@ def crear_comentario():
     if not id_historieta or not texto:
         return jsonify({"msg": "id_historieta y comentario son obligatorios"}), 400
 
-    # 1) Recuperar id_lec a partir del email
     try:
         with db.obtener_conexion() as conexion:
             with conexion.cursor() as cursor:
+                # Recuperar id_lec a partir del email
                 cursor.execute(
                     """
                     SELECT l.id_lec
@@ -489,22 +485,21 @@ def crear_comentario():
                     (email,)
                 )
                 fila = cursor.fetchone()
-        if not fila:
-            return jsonify({"msg": "No eres un lector registrado"}), 403
-
-        id_lec = fila["id_lec"]
-    except Exception as e:
-        current_app.logger.exception("crear_comentario - get id_lec")
-        return jsonify({"msg": "Error interno al verificar lector"}), 500
-
-    # 2) Insertar el comentario
-    nuevo_id = comentario_service.publicar_comentario(
-        id_historieta, id_lec, texto
-    )
-    if nuevo_id:
+                if not fila:
+                    return jsonify({"msg": "No eres un lector registrado"}), 403
+                id_lec = fila[0] if isinstance(fila, (list, tuple)) else fila["id_lec"]
+                # Insertar el comentario
+                sql_insert = """
+                    INSERT INTO comentario (id_historieta, id_lec, comentario)
+                    VALUES (%s, %s, %s)
+                """
+                cursor.execute(sql_insert, (id_historieta, id_lec, texto))
+                nuevo_id = cursor.lastrowid
+                conexion.commit()
         return jsonify({"id_comentario": nuevo_id}), 201
-    else:
-        return jsonify({"msg": "Error al crear comentario"}), 500
+    except Exception as e:
+        current_app.logger.exception("crear_comentario - error transacción")
+        return jsonify({"msg": "Error interno al crear comentario"}), 500
 
 @app.route("/api_obtener_comentarios/<int:id_historieta>", methods=["GET"])
 @jwt_required()
@@ -512,13 +507,12 @@ def get_comentarios(id_historieta):
     try:
         comentarios = comentario_service.obtener_comentarios(id_historieta)
         if comentarios is not None:
-            return jsonify(comentarios), 200
+            return jsonify({"comentarios": comentarios}), 200
         else:
             return jsonify({"msg": "No se encontraron comentarios"}), 404
     except Exception as e:
         current_app.logger.exception("Error al obtener comentarios")
         return jsonify({"msg": "Error interno al obtener comentarios"}), 500
-
 
 @app.route('/api_obtener_dni_lec', methods=['POST'])
 def obtener_dni_lec():

@@ -1,6 +1,6 @@
 import db.database as db
 from datetime import datetime
-
+from pymysql.cursors import DictCursor
 
 
 def obtener_usuario(email):
