@@ -1,7 +1,7 @@
 import db.database as db
 from datetime import datetime
 from pymysql.cursors import DictCursor
-from flask import current_app
+from flask import current_app   
 
 
 def obtener_usuario(email):
@@ -161,8 +161,8 @@ def eliminar_solicitud_proveedor(id_user):
 def get_items_usuario(id_user, tipo='purchases'):
     """
     Devuelve para el usuario:
-      - purchases: id_venta, portada, titulo, autores, fecha
-      - wishlist : id_lista, portada, titulo, autores, fecha_agregado
+      - purchases: id_venta, portada, titulo, autores, fecha, id_volumen
+      - wishlist : id_lista, portada, titulo, autores, fecha_agregado, id_volumen
     """
     try:
         with db.obtener_conexion() as conexion:
@@ -177,7 +177,8 @@ def get_items_usuario(id_user, tipo='purchases'):
                         CONCAT(a.nom_aut, ' ', a.apePat_aut)
                         SEPARATOR ', '
                       )                           AS autores,
-                      v.fec_ven                   AS fecha
+                      v.fec_ven                   AS fecha,
+                      vol.id_volumen              AS id_volumen
                     FROM venta v
                     JOIN detalle_venta dv 
                       ON v.id_ven = dv.id_venta
@@ -203,7 +204,8 @@ def get_items_usuario(id_user, tipo='purchases'):
                         CONCAT(a.nom_aut, ' ', a.apePat_aut)
                         SEPARATOR ', '
                       )                           AS autores,
-                      ld.fecha_agregado           AS fecha
+                      ld.fecha_agregado           AS fecha,
+                      vol.id_volumen              AS id_volumen
                     FROM lista_deseo ld
                     JOIN volumen vol 
                       ON ld.id_volumen = vol.id_volumen

@@ -14,6 +14,7 @@ import services.comentario_service as comentario_service
 import services.stripe_service as stripe_service
 import services.venta_service as venta_service
 import services.lector_vol_service as vol_srv
+import services.lista_deseo_service as lista_deseo_service
 import services.carrito_service as carrito_service
 import services.historieta_service as hist_srv
 import services.usuario_service as usuario_service
@@ -515,10 +516,32 @@ def get_comentarios(id_historieta):
         return jsonify({"msg": "Error interno al obtener comentarios"}), 500
     
     
-@app.route("/api/users/<int:id_user>/items", methods=["GET"])
-def api_get_items(id_user):
-    tipo = request.args.get('type', 'purchases')  # 'purchases' o 'wishlist'
+@app.route("/api/users/items", methods=["GET"])
+@jwt_required()
+def api_get_items():
+    # 1) Extraemos el email del JWT
+    email = get_jwt_identity()
+
+    # 2) Resolvemos el id_user
+    with db.obtener_conexion() as cn, cn.cursor() as cur:
+        cur.execute("SELECT id_user FROM usuario WHERE email = %s", (email,))
+        fila = cur.fetchone()
+    if not fila:
+        return jsonify({"success": False, "message": "Usuario no encontrado"}), 404
+    id_user = fila["id_user"] if isinstance(fila, dict) else fila[0]
+
+    # 3) Llamamos al servicio
+    tipo = request.args.get('type', 'purchases')
     return usuario_service.get_items_usuario(id_user, tipo)
+
+@app.route("/api/wishlist", methods=["POST"])
+@jwt_required()
+def api_agregar_wishlist():
+    user_email = get_jwt_identity()
+    # resuelve id_user...
+    id_user = ...
+    id_vol = request.json.get("id_volumen")
+    return jsonify(*agregar_lista_deseo(id_user, id_vol))
 
 @app.route('/api_obtener_dni_lec', methods=['POST'])
 def obtener_dni_lec():
@@ -580,28 +603,40 @@ def api_guardar_venta():
         return jsonify({"code": 1, "msg": "Error interno del servidor"}), 500
 
 
-    
-@app.route("/api_mis_compras", methods=["GET"])
+def _resolve_id_user_from_jwt():
+    email = get_jwt_identity()
+    with db.obtener_conexion() as cn, cn.cursor() as cur:
+        cur.execute("SELECT id_user FROM usuario WHERE email = %s", (email,))
+        fila = cur.fetchone()
+    if not fila:
+        return None
+    return fila["id_user"] if isinstance(fila, dict) else fila[0]
+
+@app.route("/api/wishlist", methods=["POST"])
 @jwt_required()
-def api_mis_compras():
-    try:
-        id_user = venta_service.id_usuario_from_jwt()
-        resp, status = venta_service.obtener_ventas_usuario(id_user)
-        return jsonify(resp), status
-    except Exception:
-        current_app.logger.exception("api_mis_compras")
-        return jsonify({"code": 1, "msg": "Error interno"}), 500
-    
-@app.route("/api_venta/<int:id_ven>", methods=["GET"])
+def api_agregar_wishlist():
+    id_user = _resolve_id_user_from_jwt()
+    if id_user is None:
+        return jsonify({"success": False, "message": "Usuario no encontrado"}), 404
+
+    data = request.get_json(force=True) or {}
+    id_volumen = data.get("id_volumen")
+    if not id_volumen:
+        return jsonify({"success": False, "message": "Falta id_volumen"}), 400
+
+    resp, status = lista_deseo_service.agregar_lista_deseo(id_user, int(id_volumen))
+    return jsonify(resp), status
+
+
+@app.route("/api/wishlist/<int:id_volumen>", methods=["DELETE"])
 @jwt_required()
-def api_detalle_venta(id_ven: int):
-    try:
-        id_user = venta_service.id_usuario_from_jwt()
-        resp, status = venta_service.detalle_venta(id_user, id_ven)
-        return jsonify(resp), status
-    except Exception:
-        current_app.logger.exception("api_detalle_venta")
-        return jsonify({"code": 1, "msg": "Error interno"}), 500        
+def api_eliminar_wishlist(id_volumen):
+    id_user = _resolve_id_user_from_jwt()
+    if id_user is None:
+        return jsonify({"success": False, "message": "Usuario no encontrado"}), 404
+
+    resp, status = lista_deseo_service.eliminar_lista_deseo(id_user, id_volumen)
+    return jsonify(resp), status
     
     
 @app.route("/payment-sheet", methods=["POST"])
