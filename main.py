@@ -552,20 +552,35 @@ def obtener_dni_lec():
 def api_guardar_venta():
     try:
         data = request.get_json(force=True)
-        carrito = data.get("carrito", [])
-        total   = float(data.get("total", 0))
+        carrito = data.get("carrito")
 
-        if not carrito:
-            return jsonify({"code": 1, "msg": "Carrito vacío"}), 400
+        if not carrito or not isinstance(carrito, list):
+            return jsonify({"code": 1, "msg": "Carrito vacío o inválido"}), 400
 
-        # id_user viene del token JWT
-        id_user = venta_service.id_usuario_from_jwt()
-        resp, status = venta_service.crear_venta(id_user, carrito, total)
-        return jsonify(resp), status
+        # 1) Obtener email desde el JWT
+        email = get_jwt_identity()
 
-    except Exception as exc:
+        # 2) Resolver id_user en la base de datos
+        with db.obtener_conexion() as cn, cn.cursor() as cur:
+            cur.execute("SELECT id_user FROM usuario WHERE email = %s", (email,))
+            fila = cur.fetchone()
+        if not fila:
+            return jsonify({"code": 1, "msg": "Usuario no encontrado"}), 404
+
+        id_user = fila["id_user"] if isinstance(fila, dict) else fila[0]
+
+        # 3) Crear la venta
+        id_ven = venta_service.crear_venta(id_user, carrito)
+        return jsonify({"code": 0, "id_venta": id_ven}), 201
+
+    except ValueError as ve:
+        return jsonify({"code": 1, "msg": str(ve)}), 400
+
+    except Exception:
         current_app.logger.exception("api_guardar_venta")
-        return jsonify({"code": 1, "msg": "Error interno"}), 500
+        return jsonify({"code": 1, "msg": "Error interno del servidor"}), 500
+
+
     
 @app.route("/api_mis_compras", methods=["GET"])
 @jwt_required()
