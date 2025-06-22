@@ -516,7 +516,6 @@ def get_comentarios(id_historieta):
     
     
 @app.route("/api/users/<int:id_user>/items", methods=["GET"])
-@jwt_required()
 def api_get_items(id_user):
     tipo = request.args.get('type', 'purchases')  # 'purchases' o 'wishlist'
     return usuario_service.get_items_usuario(id_user, tipo)
