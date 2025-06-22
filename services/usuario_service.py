@@ -1,6 +1,7 @@
 import db.database as db
 from datetime import datetime
 from pymysql.cursors import DictCursor
+from flask import current_app
 
 
 def obtener_usuario(email):
@@ -160,8 +161,8 @@ def eliminar_solicitud_proveedor(id_user):
 def get_items_usuario(id_user, tipo='purchases'):
     """
     Devuelve para el usuario:
-     - purchases: id_venta, portada, titulo, autores, fecha
-     - wishlist : id_lista, portada, titulo, autores, fecha_agregado
+      - purchases: id_venta, portada, titulo, autores, fecha
+      - wishlist : id_lista, portada, titulo, autores, fecha_agregado
     """
     try:
         with db.obtener_conexion() as conexion:
@@ -225,5 +226,5 @@ def get_items_usuario(id_user, tipo='purchases'):
         return {"success": True, "type": tipo, "data": rows}, 200
 
     except Exception as e:
-        print(f"Error en get_items_usuario ({tipo}):", e)
+        current_app.logger.exception(f"get_items_usuario ({tipo})")
         return {"success": False, "message": "Error interno del servidor"}, 500
