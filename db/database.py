@@ -1,5 +1,5 @@
 import os
-import pymysql
+import pymysql 
 import socket
 
 def obtener_conexion():

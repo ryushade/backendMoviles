@@ -7,14 +7,22 @@ import db.database as db
 
 def crear_venta(id_user: int, carrito: List[Dict]) -> int:
     """
-    Inserta una nueva venta y sus líneas de detalle usando el esquema actual:
-      - detalle_venta(id_venta, id_volumen, precio_ven, cantidad)
+    Inserta una nueva venta y sus líneas de detalle usando el esquema actual,
+    y luego elimina el carrito y sus detalles para ese usuario.
     """
     if not carrito:
         raise ValueError("carrito vacío")
 
     with db.obtener_conexion() as cn, cn.cursor() as cur:
-        cn.start_transaction()
+        cn.begin()
+
+        # 0) Obtener id_carrito activo del usuario
+        cur.execute(
+            "SELECT id_carrito FROM carrito WHERE id_user = %s",
+            (id_user,)
+        )
+        fila = cur.fetchone()
+        id_carrito = fila["id_carrito"] if isinstance(fila, dict) else (fila[0] if fila else None)
 
         # 1) Cabecera de la venta
         cur.execute(
@@ -39,9 +47,23 @@ def crear_venta(id_user: int, carrito: List[Dict]) -> int:
                 ),
             )
 
+        # 3) Vaciar el carrito del usuario
+        if id_carrito is not None:
+            # borra líneas asociadas
+            cur.execute(
+                "DELETE FROM detalle_carrito WHERE id_detalle_carrito = %s",
+                (id_carrito,)
+            )
+            # borra la cabecera del carrito (cascade elimina detalles restantes)
+            cur.execute(
+                "DELETE FROM carrito WHERE id_carrito = %s",
+                (id_carrito,)
+            )
+
         cn.commit()
 
     return id_ven
+
 
 
 # ──────────────────────────────────────────────────────────────────────
