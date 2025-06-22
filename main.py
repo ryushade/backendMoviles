@@ -534,15 +534,6 @@ def api_get_items():
     tipo = request.args.get('type', 'purchases')
     return usuario_service.get_items_usuario(id_user, tipo)
 
-@app.route("/api/wishlist", methods=["POST"])
-@jwt_required()
-def api_agregar_wishlist():
-    user_email = get_jwt_identity()
-    # resuelve id_user...
-    id_user = ...
-    id_vol = request.json.get("id_volumen")
-    return jsonify(*agregar_lista_deseo(id_user, id_vol))
-
 @app.route('/api_obtener_dni_lec', methods=['POST'])
 def obtener_dni_lec():
     try:
@@ -612,9 +603,9 @@ def _resolve_id_user_from_jwt():
         return None
     return fila["id_user"] if isinstance(fila, dict) else fila[0]
 
-@app.route("/api/wishlist", methods=["POST"])
+@app.route("/api_agregar_wishlist", methods=["POST"])
 @jwt_required()
-def api_agregar_wishlist():
+def agregar_wishlist():
     id_user = _resolve_id_user_from_jwt()
     if id_user is None:
         return jsonify({"success": False, "message": "Usuario no encontrado"}), 404
@@ -628,7 +619,7 @@ def api_agregar_wishlist():
     return jsonify(resp), status
 
 
-@app.route("/api/wishlist/<int:id_volumen>", methods=["DELETE"])
+@app.route("/api_eliminar_wishlist/<int:id_volumen>", methods=["DELETE"])
 @jwt_required()
 def api_eliminar_wishlist(id_volumen):
     id_user = _resolve_id_user_from_jwt()
