@@ -217,35 +217,35 @@ def api_ficha(id_vol):
 @app.route("/volumenes/<int:id_vol>/chapters", methods=["GET"])
 @jwt_required()
 def api_listar_capitulos_volumen(id_vol):
-    # 1) Saber quién pide
     email_user = get_jwt_identity()
     current_app.logger.debug(f"[api_listar_capitulos_volumen] email: {email_user}, volumen: {id_vol}")
 
-    # 2) ¿Lo ha comprado?
     comprado = vol_srv.usuario_compro_volumen(email_user, id_vol)
     current_app.logger.debug(f"[api_listar_capitulos_volumen] comprado: {comprado}")
 
-    # 3) Obtener todos los capítulos
     resp, status = vol_srv.listar_capitulos(id_vol)
     if status != 200 or resp.get("code") != 0:
         return jsonify(resp), status
 
-    chapters = resp["chapters"]
+    # Extraemos tipo y capítulos
+    tipo     = resp.get("tipo")
+    chapters = resp.get("chapters", [])
 
-    # 4) Si no lo compró, envio solo el primero y locked=true
     if not comprado:
         return jsonify({
             "code":     0,
+            "tipo":     tipo,
             "chapters": chapters[:1],
             "locked":   True
         }), 200
 
-    # 5) Si lo compró, envío todo y locked=false
     return jsonify({
         "code":     0,
+        "tipo":     tipo,
         "chapters": chapters,
         "locked":   False
     }), 200
+
 
 @app.route("/volumenes/<int:id_vol>/chapters/<chapter>/pages", methods=["GET"])
 def api_pages(id_vol, chapter):

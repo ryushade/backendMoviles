@@ -67,9 +67,29 @@ def ficha_volumen(id_vol:int):
     return fila, 200
 
 
-def listar_capitulos(id_vol:int):
+def listar_capitulos(id_vol: int):
+    # 1) Detectar capítulos en el ZIP
     caps = [f"c{c:03d}" for c in sorted(_catalogo(id_vol))]
-    return {"code":0, "chapters":caps}, 200
+
+    # 2) Obtener el 'tipo' de historieta desde la BD
+    with db.obtener_conexion() as cn, cn.cursor(DictCursor) as cursor:
+        cursor.execute("""
+            SELECT h.tipo
+              FROM volumen v
+              JOIN historieta h USING(id_historieta)
+             WHERE v.id_volumen = %s
+        """, (id_vol,))
+        row = cursor.fetchone()
+
+    tipo = row["tipo"] if row else None
+
+    # 3) Devolver ambos: tipo y lista de capítulos
+    return {
+        "code":     0,
+        "tipo":     tipo,
+        "chapters": caps
+    }, 200
+
 
 
 def listar_paginas(id_vol:int, chap:str):
