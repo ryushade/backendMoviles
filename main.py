@@ -685,6 +685,27 @@ def obtener_solicitud_historieta_por_id(id_solicitud):
     else:
         return jsonify({"msg": "Solicitud no encontrada o no está pendiente"}), 404
     
+@app.route("/api_obtener_solicitud_historieta", methods=["GET"])
+@jwt_required()
+def api_obtener_solicitud_historieta():
+    """
+    GET /api_obtener_solicitud_historieta
+    Devuelve todas las solicitudes de publicación de historietas en estado 'pendiente'.
+    """
+    try:
+        # Llama al servicio que ya tienes implementado
+        solicitudes = admin_service.obtener_solicitud_publicacion()
+        # Si quieres envolver la respuesta en un objeto:
+        # return jsonify({"solicitudes": solicitudes}), 200
+        return jsonify(solicitudes), 200
+    except Exception as e:
+        current_app.logger.exception("api_obtener_solicitud_historieta - error")
+        return jsonify({
+            "msg": "Error al obtener las solicitudes de historietas",
+            "detalle": str(e)
+        }), 500
+    
+    
 @app.route("/api_crear_comentario", methods=["POST"])
 @jwt_required()
 def obtener_crear_comentario():
