@@ -41,7 +41,7 @@ jwt = JWTManager(app)
 
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-sa_path  = os.path.join(BASE_DIR, 'db', 'firebase_sa.json')
+sa_path  = os.path.join(BASE_DIR, 'db', 'firebase-sa.json')
 
 if not firebase_admin._apps:
     cred = credentials.Certificate(sa_path)
