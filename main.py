@@ -96,41 +96,44 @@ from firebase_admin import auth as firebase_auth
 @app.route("/auth_google", methods=["POST"])
 def auth_google():
     id_token = request.json.get("id_token")
-    print("ID_TOKEN RECIBIDO:", id_token)  # <-- Log del token recibido
+    print("ID_TOKEN RECIBIDO:", id_token)
     try:
+        # 1) Verificamos el ID token de Firebase
         decoded = firebase_auth.verify_id_token(id_token)
-        email = decoded["email"]
+        email = decoded.get("email")
+        if not email:
+            raise ValueError("No viene email en el token")
 
-        # 1) Verifico si ya existe en mi tabla usuario
-        with db.obtener_conexion() as cn, cn.cursor() as cur:
+        # 2) Comprobamos/creamos al usuario en nuestra BD
+        with db.obtener_conexion() as cn, cn.cursor(DictCursor) as cur:
+            # ¿Ya existe?
             cur.execute("SELECT id_user FROM usuario WHERE email = %s", (email,))
             fila = cur.fetchone()
 
             if not fila:
-                # 2) Si no existe, lo creo con rol = 'Usuario' (id_rol = 1)
+                # a) Insertamos en usuario
                 cur.execute(
                     "INSERT INTO usuario (email, pass, id_rol) VALUES (%s, %s, %s)",
                     (email, "", 1)
                 )
-                cn.commit()
-                # opcionalmente generar también un lector (si siempre los usuarios son lectores)
-                cur.execute("SELECT LAST_INSERT_ID()")
-                new_id = cur.fetchone()[0]
+                new_user_id = cur.lastrowid
+                print(f"Usuario nuevo creado: id_user={new_user_id}")
+
+                # b) Insertamos registro en lector (si es tu comportamiento deseado)
                 cur.execute(
                     "INSERT INTO lector (dni_lec, nom_lec, apellidos_lec, id_user) "
                     "VALUES (%s, %s, %s, %s)",
-                    ("", "", "", new_id)
+                    ("", "", "", new_user_id)
                 )
+                print(f"Lector asociado creado para id_user={new_user_id}")
+
                 cn.commit()
 
-        # 3) Ya tengo o creé al usuario, genero mi JWT interno
+        # 3) Generamos nuestro JWT interno
         access_token = create_access_token(identity=email)
         return jsonify({"access_token": access_token}), 200
 
     except Exception as e:
-        import traceback
-        print("ERROR EN VERIFICACIÓN DE TOKEN:", str(e))
-        traceback.print_exc()  # <-- Imprime el stacktrace completo
         current_app.logger.exception("auth_google falló")
         return jsonify({"msg": f"Token inválido o error interno: {str(e)}"}), 401
 
