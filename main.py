@@ -25,6 +25,8 @@ import hmac
 import hashlib
 from werkzeug.utils import secure_filename
 import uuid
+import firebase_admin
+from firebase_admin import credentials
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 UPLOAD_FOLDER_PORTADAS = os.path.join(BASE_DIR, "static", "uploads", "portadas")
@@ -38,6 +40,11 @@ app.config["JWT_SECRET_KEY"] = "secret"
 jwt = JWTManager(app)
 
 
+sa_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+if not sa_path or not os.path.isfile(sa_path):
+    raise RuntimeError("No se encontró el JSON de service account de Firebase")
+cred = credentials.Certificate(sa_path)
+firebase_admin.initialize_app(cred)
 
 
 REPO_PATH = "/home/grupo1damb/mysite/backendMoviles"
@@ -83,6 +90,19 @@ def update_server():
 @app.route("/auth", methods=["POST"]) 
 def auth():
     return auth_controller.auth()
+
+from firebase_admin import auth as firebase_auth
+
+@app.route("/auth_google", methods=["POST"])
+def auth_google():
+    id_token = request.json.get("id_token")
+    try:
+        decoded = firebase_auth.verify_id_token(id_token)
+        # decoded["email"], decoded["uid"], …
+        access_token = create_access_token(identity=decoded["email"])
+        return jsonify({"access_token": access_token}), 200
+    except Exception as e:
+        return jsonify({"msg": "Token inválido"}), 401
 
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
