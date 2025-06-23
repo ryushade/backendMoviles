@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, url_for, current_app
+from werkzeug.exceptions import RequestEntityTooLarge
 from pymysql.cursors import DictCursor
 from flask_jwt_extended import jwt_required, JWTManager, create_access_token, get_jwt_identity
 import db.database as db
@@ -37,6 +38,7 @@ os.makedirs(UPLOAD_FOLDER_ZIPS, exist_ok=True)
 app = Flask(__name__)
 app.debug = True
 app.config["JWT_SECRET_KEY"] = "secret"
+app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500 MB
 jwt = JWTManager(app)
 
 
@@ -96,39 +98,46 @@ from firebase_admin import auth as firebase_auth
 @app.route("/auth_google", methods=["POST"])
 def auth_google():
     id_token = request.json.get("id_token")
+    print("ID_TOKEN RECIBIDO:", id_token)
     try:
+        # 1) Verificamos el ID token de Firebase
         decoded = firebase_auth.verify_id_token(id_token)
-        email = decoded["email"]
+        email = decoded.get("email")
+        if not email:
+            raise ValueError("No viene email en el token")
 
-        # 1) Verifico si ya existe en mi tabla usuario
-        with db.obtener_conexion() as cn, cn.cursor() as cur:
+        # 2) Comprobamos/creamos al usuario en nuestra BD
+        with db.obtener_conexion() as cn, cn.cursor(DictCursor) as cur:
+            # ¿Ya existe?
             cur.execute("SELECT id_user FROM usuario WHERE email = %s", (email,))
             fila = cur.fetchone()
 
             if not fila:
-                # 2) Si no existe, lo creo con rol = 'Usuario' (id_rol = 1)
+                # a) Insertamos en usuario
                 cur.execute(
                     "INSERT INTO usuario (email, pass, id_rol) VALUES (%s, %s, %s)",
                     (email, "", 1)
                 )
-                cn.commit()
-                # opcionalmente generar también un lector (si siempre los usuarios son lectores)
-                cur.execute("SELECT LAST_INSERT_ID()")
-                new_id = cur.fetchone()[0]
+                new_user_id = cur.lastrowid
+                print(f"Usuario nuevo creado: id_user={new_user_id}")
+
+                # b) Insertamos registro en lector (si es tu comportamiento deseado)
                 cur.execute(
                     "INSERT INTO lector (dni_lec, nom_lec, apellidos_lec, id_user) "
                     "VALUES (%s, %s, %s, %s)",
-                    ("", "", "", new_id)
+                    ("", "", "", new_user_id)
                 )
+                print(f"Lector asociado creado para id_user={new_user_id}")
+
                 cn.commit()
 
-        # 3) Ya tengo o creé al usuario, genero mi JWT interno
+        # 3) Generamos nuestro JWT interno
         access_token = create_access_token(identity=email)
         return jsonify({"access_token": access_token}), 200
 
     except Exception as e:
         current_app.logger.exception("auth_google falló")
-        return jsonify({"msg": "Token inválido o error interno"}), 401
+        return jsonify({"msg": f"Token inválido o error interno: {str(e)}"}), 401
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
@@ -676,6 +685,27 @@ def obtener_solicitud_historieta_por_id(id_solicitud):
     else:
         return jsonify({"msg": "Solicitud no encontrada o no está pendiente"}), 404
     
+@app.route("/api_obtener_solicitud_historieta", methods=["GET"])
+@jwt_required()
+def api_obtener_solicitud_historieta():
+    """
+    GET /api_obtener_solicitud_historieta
+    Devuelve todas las solicitudes de publicación de historietas en estado 'pendiente'.
+    """
+    try:
+        # Llama al servicio que ya tienes implementado
+        solicitudes = admin_service.obtener_solicitud_publicacion()
+        # Si quieres envolver la respuesta en un objeto:
+        # return jsonify({"solicitudes": solicitudes}), 200
+        return jsonify(solicitudes), 200
+    except Exception as e:
+        current_app.logger.exception("api_obtener_solicitud_historieta - error")
+        return jsonify({
+            "msg": "Error al obtener las solicitudes de historietas",
+            "detalle": str(e)
+        }), 500
+    
+    
 @app.route("/api_crear_comentario", methods=["POST"])
 @jwt_required()
 def obtener_crear_comentario():
@@ -934,3 +964,7 @@ def home():
 #! Iniciar el servidor
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=8000, debug=True)
+
+@app.errorhandler(413)
+def too_large(e):
+    return {"msg": "El archivo es demasiado grande. Límite: 500 MB."}, 413

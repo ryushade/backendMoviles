@@ -67,7 +67,8 @@ def mas_vendidas(limit: int = 24):
 
 def mas_vendidos(limit: int = 10) -> List[Dict]:
     """
-    Retorna los volúmenes más vendidos, ordenados por cantidad total vendida.
+    Retorna los volúmenes más vendidos (sólo los que tienen al menos una venta),
+    ordenados por cantidad total vendida.
     Cada elemento incluye:
       - id_volumen
       - titulo         (Título de la historieta)
@@ -77,19 +78,19 @@ def mas_vendidos(limit: int = 10) -> List[Dict]:
     sql = """
     SELECT
       v.id_volumen,
-      h.titulo          AS titulo,
-      h.portada_url     AS portada_url,
-      COALESCE(SUM(dv.cantidad), 0) AS total_vendido
+      h.titulo        AS titulo,
+      h.portada_url   AS portada_url,
+      SUM(dv.cantidad) AS total_vendido
     FROM volumen v
-    LEFT JOIN detalle_venta dv  ON dv.id_volumen       = v.id_volumen
-    LEFT JOIN historieta h      ON h.id_historieta     = v.id_historieta
+    JOIN detalle_venta dv  ON dv.id_volumen   = v.id_volumen
+    JOIN historieta h      ON h.id_historieta = v.id_historieta
     WHERE h.estado = 'aprobado'
     GROUP BY
       v.id_volumen,
       h.titulo,
       h.portada_url
     ORDER BY total_vendido DESC
-    LIMIT %s
+    LIMIT %s;
     """
     with db.obtener_conexion() as cn, cn.cursor() as cur:
         cur.execute(sql, (limit,))
@@ -97,10 +98,10 @@ def mas_vendidos(limit: int = 10) -> List[Dict]:
 
     resultados = []
     for fila in filas:
-        # soporta cursor DictCursor o tuple
-        id_vol     = fila["id_volumen"]   if isinstance(fila, dict) else fila[0]
-        titulo     = fila["titulo"]       if isinstance(fila, dict) else fila[1]
-        portada    = fila["portada_url"]  if isinstance(fila, dict) else fila[2]
+        # permite cursor DictCursor o tuplas
+        id_vol     = fila["id_volumen"]    if isinstance(fila, dict) else fila[0]
+        titulo     = fila["titulo"]        if isinstance(fila, dict) else fila[1]
+        portada    = fila["portada_url"]    if isinstance(fila, dict) else fila[2]
         total      = fila["total_vendido"] if isinstance(fila, dict) else fila[3]
 
         resultados.append({

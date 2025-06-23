@@ -97,11 +97,11 @@ def aprobar_solicitud(id_solicitud: int, id_admin: int):
                     VALUES (%s,%s)
                 """, (id_hist, id_autor))
 
-            # 6) Género principal  (YA viene como id_genero en la solicitud)
+            # 6) Género principal  (YA viene como genero_principal en la solicitud)
             cur.execute("""
                 INSERT IGNORE INTO historieta_genero(id_historieta, id_genero)
                 VALUES (%s, %s)
-            """, (id_hist, row["id_genero"]))
+            """, (id_hist, row["genero_principal"]))
 
             # 7) Marcar solicitud
             cur.execute("""
