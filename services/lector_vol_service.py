@@ -111,17 +111,24 @@ def serve_page(id_vol:int, chapter:str, filename:str):   # ← registrado en mai
 
 
 def usuario_compro_volumen(email_user: str, id_vol: int) -> bool:
-    """
-    Devuelve True si el usuario con ese email compró el volumen, False en caso contrario.
-    """
     with db.obtener_conexion() as cn, cn.cursor(DictCursor) as cursor:
-        cursor.execute("""
+        # 1) Obtener id_user
+        cursor.execute("SELECT id_user FROM usuario WHERE email = %s", (email_user,))
+        fila = cursor.fetchone()
+        if not fila:
+            return False
+        id_user = fila["id_user"]
+
+        # 2) Verificar compra por volumen
+        cursor.execute(
+            """
             SELECT 1
               FROM venta v
-              JOIN usuario u       ON v.id_user = u.id_user
-              JOIN venta_item vi   ON v.id_ven  = vi.id_ven
-             WHERE u.email       = %s
-               AND vi.id_volumen = %s
+              JOIN detalle_venta dv ON v.id_ven = dv.id_venta
+             WHERE v.id_user    = %s
+               AND dv.id_volumen = %s
              LIMIT 1
-        """, (email_user, id_vol))
+            """,
+            (id_user, id_vol)
+        )
         return cursor.fetchone() is not None
