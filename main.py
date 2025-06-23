@@ -256,6 +256,60 @@ def obtener_dashboard_proveedor():
         "volumenes": volumenes
     })
 
+@app.route("/admin_dashboard", methods=["GET"])
+@jwt_required()
+def api_dashboard_admin():
+    with db.obtener_conexion() as conexion:
+        with conexion.cursor(DictCursor) as cursor:
+
+            # 1) Proveedores pendientes
+            cursor.execute("""
+                SELECT COUNT(*) AS total 
+                FROM usuario 
+                WHERE proveedor_solicitud = 1
+            """)
+            proveedores_pendientes = cursor.fetchone()["total"]
+
+            # 2) Publicaciones pendientes
+            cursor.execute("""
+                SELECT COUNT(*) AS total 
+                FROM solicitud_publicacion 
+                WHERE estado = 'pendiente'
+            """)
+            publicaciones_pendientes = cursor.fetchone()["total"]
+
+            # 3) Solicitudes por día (últimos 7 días)
+            cursor.execute("""
+                SELECT DATE(fecha_solicitud) AS fecha, COUNT(*) AS total
+                FROM solicitud_publicacion
+                WHERE fecha_solicitud >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+                GROUP BY fecha
+                ORDER BY fecha
+            """)
+            solicitudes_por_dia = cursor.fetchall()
+
+            # 4) Solicitudes recientes (últimas 5)
+            cursor.execute("""
+                SELECT s.id_solicitud, s.titulo, s.fecha_solicitud, u.email
+                FROM solicitud_publicacion s
+                JOIN usuario u ON s.id_user = u.id_user
+                ORDER BY s.fecha_solicitud DESC
+                LIMIT 5
+            """)
+            recientes = cursor.fetchall()
+
+    return jsonify({
+        "code": 0,
+        "stats": {
+            "proveedores_pendientes": proveedores_pendientes,
+            "publicaciones_pendientes": publicaciones_pendientes
+        },
+        "grafico": solicitudes_por_dia,
+        "recientes": recientes
+    }), 200
+
+
+
 
 @app.route("/historietas/genero/<int:id_genero>", methods=["GET"])
 @jwt_required()
