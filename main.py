@@ -314,6 +314,7 @@ def eliminar_solicitud_proveedor():
     return usuario_service.eliminar_solicitud_proveedor(id_user)    
 
 @app.route("/api_eliminar_solicitud_publicacion", methods=["POST"])
+@jwt_required()
 def eliminar_solicitud_publicacion():
     data = request.json
     if not data or "id_solicitud" not in data:

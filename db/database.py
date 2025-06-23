@@ -3,7 +3,7 @@ import pymysql
 import socket
 
 def obtener_conexion():
-    entorno = 'produccion'  
+    entorno = 'local'  
 
     if entorno == 'local':
         return pymysql.connect(
