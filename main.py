@@ -202,7 +202,7 @@ def api_novedades():
 #     return jsonify(data), 200
 
 
-@app.route("/proveedor/dashboard", methods=["GET"])
+@app.route("/proveedor_dashboard", methods=["GET"])
 @jwt_required()
 def api_dashboard_proveedor():
     email_user = get_jwt_identity()
