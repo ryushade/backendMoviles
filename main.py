@@ -1,4 +1,5 @@
-from flask import Flask, request, jsonify, url_for, current_app, RequestEntityTooLarge
+from flask import Flask, request, jsonify, url_for, current_app
+from werkzeug.exceptions import RequestEntityTooLarge
 from pymysql.cursors import DictCursor
 from flask_jwt_extended import jwt_required, JWTManager, create_access_token, get_jwt_identity
 import db.database as db
