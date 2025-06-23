@@ -202,6 +202,55 @@ def api_novedades():
 #     return jsonify(data), 200
 
 
+@app.route("/proveedor/dashboard", methods=["GET"])
+@jwt_required()
+def api_dashboard_proveedor():
+    email_user = get_jwt_identity()
+
+    with db.obtener_conexion() as conexion:
+        with conexion.cursor(DictCursor) as cursor:
+            # Obtener id_user
+            cursor.execute("SELECT id_user FROM usuario WHERE email = %s", (email_user,))
+            fila = cursor.fetchone()
+            if not fila:
+                return jsonify({"msg": "Usuario no encontrado"}), 404
+            id_user = fila["id_user"]
+
+            # Contar publicaciones activas
+            cursor.execute("""
+                SELECT COUNT(*) AS total
+                FROM historieta
+                WHERE id_user = %s AND estado = 'activo'
+            """, (id_user,))
+            total_activas = cursor.fetchone()["total"]
+
+            # Contar solicitudes pendientes
+            cursor.execute("""
+                SELECT COUNT(*) AS total
+                FROM solicitud_publicacion
+                WHERE id_user = %s AND estado = 'pendiente'
+            """, (id_user,))
+            total_pendientes = cursor.fetchone()["total"]
+
+            # Obtener lista de publicaciones del proveedor
+            cursor.execute("""
+                SELECT h.id_historieta, h.titulo, h.portada_url, h.descripcion
+                FROM historieta h
+                WHERE h.id_user = %s
+                ORDER BY h.fecha_creacion DESC
+            """, (id_user,))
+            publicaciones = cursor.fetchall()
+
+    return jsonify({
+        "code": 0,
+        "stats": {
+            "publicaciones_activas": total_activas,
+            "solicitudes_pendientes": total_pendientes
+        },
+        "publicaciones": publicaciones
+    }), 200
+
+
 @app.route("/historietas/genero/<int:id_genero>", methods=["GET"])
 @jwt_required()
 def api_por_genero(id_genero):
@@ -213,6 +262,7 @@ def api_por_genero(id_genero):
 def api_ficha(id_vol):
     data, st = vol_srv.ficha_volumen(id_vol)
     return jsonify(data), st
+
 
 @app.route("/volumenes/<int:id_vol>/chapters", methods=["GET"])
 @jwt_required()
