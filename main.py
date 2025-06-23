@@ -96,6 +96,7 @@ from firebase_admin import auth as firebase_auth
 @app.route("/auth_google", methods=["POST"])
 def auth_google():
     id_token = request.json.get("id_token")
+    print("ID_TOKEN RECIBIDO:", id_token)  # <-- Log del token recibido
     try:
         decoded = firebase_auth.verify_id_token(id_token)
         email = decoded["email"]
@@ -127,8 +128,11 @@ def auth_google():
         return jsonify({"access_token": access_token}), 200
 
     except Exception as e:
+        import traceback
+        print("ERROR EN VERIFICACIÓN DE TOKEN:", str(e))
+        traceback.print_exc()  # <-- Imprime el stacktrace completo
         current_app.logger.exception("auth_google falló")
-        return jsonify({"msg": "Token inválido o error interno"}), 401
+        return jsonify({"msg": f"Token inválido o error interno: {str(e)}"}), 401
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
