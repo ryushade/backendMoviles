@@ -116,8 +116,42 @@ def eliminar_item(
     user: Union[int, str],
     id_volumen: int
 ) -> Tuple[Dict, int]:
-    """Elimina una línea concreta del carrito."""
-    return actualizar_cantidad(user, id_volumen, 0)
+    """
+    Elimina una línea concreta del carrito. 
+    Si queda vacío, borra la cabecera también.
+    """
+    # 1) Borra el detalle (igual que antes)
+    id_carrito = _obtener_o_crear_carrito(user)
+    with db.obtener_conexion() as cn, cn.cursor() as cur:
+        # elimina el detalle
+        cur.execute(
+            "DELETE FROM detalle_carrito "
+            "WHERE id_detalle_carrito = %s AND id_volumen = %s",
+            (id_carrito, id_volumen)
+        )
+
+        # 2) Comprueba si quedan líneas
+        cur.execute(
+            "SELECT COUNT(*) AS cnt "
+            "FROM detalle_carrito "
+            "WHERE id_detalle_carrito = %s",
+            (id_carrito,)
+        )
+        cnt = cur.fetchone()
+        # extrae el número (DictCursor o tuplas)
+        total = cnt["cnt"] if isinstance(cnt, dict) else cnt[0]
+
+        # 3) Si ya no hay líneas, borra la cabecera del carrito
+        if total == 0:
+            cur.execute(
+                "DELETE FROM carrito WHERE id_carrito = %s",
+                (id_carrito,)
+            )
+
+        cn.commit()
+
+    return {"code": 0, "msg": "Ítem eliminado"}, 200
+
 
 
 def vaciar_carrito(

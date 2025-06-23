@@ -266,15 +266,24 @@ def api_listar_carrito():
     return jsonify(resp), status
 
 
+from services.lector_vol_service import usuario_compro_volumen
+
 @app.route("/carrito/agregar", methods=["POST"])
 @jwt_required()
 def api_agregar_carrito():
     data        = request.json or {}
     id_user     = get_jwt_identity()
-    id_volumen  = data.get("id_volumen")  # <-- Cambia aquí
+    id_volumen  = data.get("id_volumen")
     cant        = data.get("cantidad", 1)
+
     if not id_volumen:
         return jsonify({"msg": "Falta id_volumen"}), 400
+
+    # Verificar si el volumen ya fue comprado
+    email_user = id_user  # si `get_jwt_identity()` retorna email
+    if usuario_compro_volumen(email_user, id_volumen):
+        return jsonify({"msg": "Ya compraste este volumen"}), 400
+
     resp, st = carrito_service.agregar_al_carrito(id_user, id_volumen, cant)
     return jsonify(resp), st
 
@@ -295,10 +304,15 @@ def api_actualizar_cantidad():
 @app.route("/carrito/item", methods=["DELETE"])
 @jwt_required()
 def api_eliminar_item():
-    id_user  = get_jwt_identity()
-    id_hist  = request.args.get("id_historieta", type=int)
-    resp, st = carrito_service.eliminar_item(id_user, id_hist)
+    id_user    = get_jwt_identity()
+    id_volumen = request.args.get("id_volumen", type=int)  # antes eras id_historieta
+
+    if id_volumen is None:
+        return jsonify({"code": 1, "msg": "Falta id_volumen"}), 400
+
+    resp, st = carrito_service.eliminar_item(id_user, id_volumen)
     return jsonify(resp), st
+
 
 
 @app.route("/carrito/vaciar", methods=["POST"])
@@ -597,19 +611,18 @@ def obtener_dni_lec():
         return jsonify({"code": 1, "msg": f"Error al obtener el dni_lec: {str(e)}"}), 500
     
 
-@app.route("/api/volumenes/mas-vendidos", methods=["GET"])
+@app.route("/volumenes_mas_vendidos", methods=["GET"])
 @jwt_required()
-def api_volumenes_mas_vendidos():
+def api_volumenes_mas_vendidos_top_10():
     """
-    Devuelve los 10 volúmenes con mayor cantidad vendida.
+    Devuelve los 10 volúmenes más vendidos.
     """
     try:
         data = hist_srv.mas_vendidos(limit=10)
         return jsonify({"code": 0, "data": data}), 200
-    except Exception as e:
+    except Exception:
         current_app.logger.exception("api_volumenes_mas_vendidos")
         return jsonify({"code": 1, "msg": "Error interno al obtener más vendidos"}), 500
-
     
 @app.route("/api_guardar_venta", methods=["POST"])
 @jwt_required()
