@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, url_for, current_app
+from flask import Flask, request, jsonify, url_for, current_app, RequestEntityTooLarge
 from pymysql.cursors import DictCursor
 from flask_jwt_extended import jwt_required, JWTManager, create_access_token, get_jwt_identity
 import db.database as db
@@ -37,6 +37,7 @@ os.makedirs(UPLOAD_FOLDER_ZIPS, exist_ok=True)
 app = Flask(__name__)
 app.debug = True
 app.config["JWT_SECRET_KEY"] = "secret"
+app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500 MB
 jwt = JWTManager(app)
 
 
@@ -941,3 +942,7 @@ def home():
 #! Iniciar el servidor
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=8000, debug=True)
+
+@app.errorhandler(413)
+def too_large(e):
+    return {"msg": "El archivo es demasiado grande. Límite: 500 MB."}, 413
