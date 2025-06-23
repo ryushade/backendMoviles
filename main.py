@@ -399,10 +399,12 @@ def lista_busqueda():
 @app.route("/api_registrar_solicitud", methods=["POST"])
 @jwt_required()
 def insertar_solicitud():
-    data = request.json
+    data = request.get_json(silent=True) or {}
     if not data:
         return jsonify({"code": 1, "msg": "Datos de solicitud no proporcionados"}), 400
-    return proveedor_service.registrar_solicitud(data)
+    email_user = get_jwt_identity()
+    return proveedor_service.registrar_solicitud(email_user, data)
+
 
 # @app.route("/api_aprobar_publicacion", methods=["POST"])
 # @jwt_required()
@@ -430,10 +432,7 @@ def api_obtener_generos():
         generos_list = [{"id_genero": g[0], "nombre_genero": g[1]} for g in generos]
     return jsonify(generos_list), 200  # <-- solo la lista, no un dict
 
-@app.route("/api_obtener_mis_solicitudes", methods=["GET"])
-def obtener_solicitudes():
-    respuesta, status = proveedor_service.getMisSolicitudes()
-    return jsonify(respuesta), status
+
 
 
 
@@ -441,8 +440,15 @@ def obtener_solicitudes():
 @jwt_required()
 def obtener_solicitudes():
     email_user = get_jwt_identity()
+    current_app.logger.debug(f"[api_obtener_mis_solicitudes] email_user: {email_user}")
+
     respuesta, status = proveedor_service.getMisSolicitudes(email_user)
+    current_app.logger.debug(
+        f"[api_obtener_mis_solicitudes] filas devueltas: {len(respuesta['data'])}"
+    )
+
     return jsonify(respuesta), status
+
 
 @app.route("/api_obtener_usuario_data")
 @jwt_required()

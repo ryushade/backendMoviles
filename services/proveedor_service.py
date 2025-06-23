@@ -45,32 +45,46 @@ def cancelar_solicitud_proveedor(email):
         print("Error:", e)
         return {"code": 1, "msg": "Error interno del servidor"}, 500
     
-def registrar_solicitud(data):
- 
+def registrar_solicitud(email_user, data):
     try:
-        campos_obligatorios = ("id_user", "tipo", "titulo", "autores",
+        # Validar campos obligatorios (sin id_user)
+        campos_obligatorios = ("tipo", "titulo", "autores",
                                "url_portada", "url_zip")
         faltantes = [c for c in campos_obligatorios if not data.get(c)]
         if faltantes:
-            return {"code": 1,
-                    "msg": f"Faltan campos obligatorios: {', '.join(faltantes)}"}, 400
+            return {
+                "code": 1,
+                "msg": f"Faltan campos obligatorios: {', '.join(faltantes)}"
+            }, 400
 
-        # --- 2. Inserción --------------------------------
         with db.obtener_conexion() as conexion:
-            with conexion.cursor() as cursor:
+            with conexion.cursor(DictCursor) as cursor:
+                # 1) Obtener id_user a partir del email
+                cursor.execute(
+                    "SELECT id_user FROM usuario WHERE email = %s",
+                    (email_user,)
+                )
+                fila = cursor.fetchone()
+                if not fila:
+                    return {"code": 1, "msg": "Usuario no encontrado"}, 404
+                id_user = fila["id_user"]
+
+                # 2) Insertar solicitud con estado 'pendiente'
                 sql = """
-                    INSERT INTO solicitud_publicacion
-                      (id_user, tipo, titulo, autores,
-                       anio_publicacion, precio_volumen, restriccion_edad,
-                       editorial, genero_principal, descripcion,
-                       url_portada, url_zip)
-                    VALUES (%s, %s, %s, %s,
-                            %s, %s, %s,
-                            %s, %s, %s,
-                            %s, %s)
+                    INSERT INTO solicitud_publicacion (
+                      id_user, tipo, titulo, autores,
+                      anio_publicacion, precio_volumen, restriccion_edad,
+                      editorial, genero_principal, descripcion,
+                      url_portada, url_zip, estado
+                    ) VALUES (
+                      %s, %s, %s, %s,
+                      %s, %s, %s,
+                      %s, %s, %s,
+                      %s, %s, 'pendiente'
+                    )
                 """
                 cursor.execute(sql, (
-                    data["id_user"],
+                    id_user,
                     data["tipo"],
                     data["titulo"],
                     data["autores"],
@@ -84,12 +98,16 @@ def registrar_solicitud(data):
                     data["url_zip"]
                 ))
                 conexion.commit()
+                nuevo_id = cursor.lastrowid
 
-        return {"code": 0,
-                "msg": "Solicitud de publicación registrada correctamente."}, 201
+        return {
+            "code": 0,
+            "msg": "Solicitud de publicación registrada correctamente.",
+            "id_solicitud": nuevo_id
+        }, 201
 
     except Exception as e:
-        print("Error al registrar solicitud:", e)
+        current_app.logger.exception("registrar_solicitud")
         return {"code": 1, "msg": "Error interno del servidor"}, 500
     
 def getSolicitudHistorieta(id_solicitud):
@@ -117,26 +135,29 @@ def getMisSolicitudes(email_user):
     try:
         with db.obtener_conexion() as conexion:
             with conexion.cursor(DictCursor) as cursor:
-                cursor.execute(
-                    """
+                sql = """
                     SELECT
                       sp.id_solicitud,
                       sp.titulo,
                       sp.tipo,
-                      DATE_FORMAT(sp.fecha_solicitud, '%Y-%m-%d %H:%i:%s') AS fecha_solicitud,
+                      DATE_FORMAT(
+                        sp.fecha_solicitud,
+                        '%%Y-%%m-%%d %%H:%%i:%%s'
+                      ) AS fecha_solicitud,
                       sp.estado
                     FROM solicitud_publicacion sp
-                    JOIN usuario u ON sp.id_user = u.id_user
+                    JOIN usuario u
+                      ON sp.id_user = u.id_user
                     WHERE u.email = %s
                       AND sp.estado IN ('pendiente','rechazado','aprobado')
                     ORDER BY sp.fecha_solicitud DESC
-                    """,
-                    (email_user,)
-                )
+                """
+                cursor.execute(sql, (email_user,))
                 solicitudes = cursor.fetchall()
+
         return {"success": True, "data": solicitudes}, 200
 
-    except Exception as e:
+    except Exception:
         current_app.logger.exception("getMisSolicitudes")
         return {"success": False, "message": "Error interno del servidor"}, 500
 
