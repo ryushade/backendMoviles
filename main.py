@@ -431,21 +431,18 @@ def api_obtener_generos():
     return jsonify(generos_list), 200  # <-- solo la lista, no un dict
 
 @app.route("/api_obtener_mis_solicitudes", methods=["GET"])
-@jwt_required()
 def obtener_solicitudes():
-    email_user = get_jwt_identity()
-    if not email_user:
-        return jsonify({"success": False, "message": "Usuario no autenticado"}), 401
-    respuesta, status = proveedor_service.getMisSolicitudes(email_user)
+    respuesta, status = proveedor_service.getMisSolicitudes()
     return jsonify(respuesta), status
 
 
-@app.route("/api_obtener_solicitud_historieta", methods=["GET"])
-@jwt_required()
-def obtener_solicitud_historieta():
-    respuesta = admin_service.obtener_solicitud_publicacion()
-    return jsonify(respuesta), 200
 
+@app.route("/api_obtener_mis_solicitudes", methods=["GET"])
+@jwt_required()
+def obtener_solicitudes():
+    email_user = get_jwt_identity()
+    respuesta, status = proveedor_service.getMisSolicitudes(email_user)
+    return jsonify(respuesta), status
 
 @app.route("/api_obtener_usuario_data")
 @jwt_required()

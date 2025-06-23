@@ -1,6 +1,7 @@
 import db.database as db
 from datetime import datetime
 from pymysql.cursors import DictCursor
+from flask import current_app
 
 def solicitar_proveedor(email):
     try:
@@ -118,27 +119,27 @@ def getMisSolicitudes(email_user):
             with conexion.cursor(DictCursor) as cursor:
                 cursor.execute(
                     """
-                    SELECT 
+                    SELECT
                       sp.id_solicitud,
                       sp.titulo,
                       sp.tipo,
-                      DATE_FORMAT(sp.fecha_solicitud, '%%Y-%%m-%%d %%H:%%i:%%s') AS fecha_solicitud,
+                      DATE_FORMAT(sp.fecha_solicitud, '%Y-%m-%d %H:%i:%s') AS fecha_solicitud,
                       sp.estado
                     FROM solicitud_publicacion sp
                     JOIN usuario u ON sp.id_user = u.id_user
                     WHERE u.email = %s
-                    AND sp.estado IN ('pendiente', 'rechazado', 'aprobado')
+                      AND sp.estado IN ('pendiente','rechazado','aprobado')
                     ORDER BY sp.fecha_solicitud DESC
                     """,
                     (email_user,)
                 )
                 solicitudes = cursor.fetchall()
-
         return {"success": True, "data": solicitudes}, 200
 
     except Exception as e:
-        print("Error al obtener solicitudes del usuario:", e)
+        current_app.logger.exception("getMisSolicitudes")
         return {"success": False, "message": "Error interno del servidor"}, 500
+
     
 def editar_solicitud_publicacion(data):
     try:
