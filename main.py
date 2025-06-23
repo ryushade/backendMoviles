@@ -670,22 +670,25 @@ def api_eliminar_wishlist(id_volumen):
 @app.route("/payment-sheet", methods=["POST"])
 @jwt_required()
 def api_payment_sheet():
-    # 1) Leer el body
     data = request.get_json(force=True)
     amount_cents = int(data.get("amount_cents", 0))
     if amount_cents <= 0:
         return jsonify({"msg": "amount_cents inválido"}), 400
 
-    # 2) Obtener el email del usuario desde el JWT
     email = get_jwt_identity()
 
-    # 3) Llamar al servicio Stripe
     try:
         payload = stripe_service.generar_payment_sheet(amount_cents, email)
         return jsonify(payload), 200
+
+    except ValueError as e:
+        # Errores de validación (por ejemplo amount < 50 céntimos)
+        return jsonify({"msg": str(e)}), 400
+
     except Exception as exc:
         current_app.logger.exception("api_payment_sheet")
-        return jsonify({"msg": str(exc)}), 400
+        return jsonify({"msg": "Error interno al crear payment sheet"}), 500
+
     
     
 @app.route("/")
