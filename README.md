@@ -17,6 +17,7 @@ pip install stripe
 pip install firebase-admin
 pip install google-api-python-client
 pip install GitPython
+pip install PyYAML
 ```
 
 
