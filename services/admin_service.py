@@ -35,6 +35,7 @@ def aprobar_proveedor(id_user, id_rol_proveedor=2):
     except Exception as e:
         print("Error al aprobar proveedor:", e)
         return False
+    
 
 def rechazar_proveedor(id_user):
     try:
