@@ -98,16 +98,43 @@ def auth_google():
     id_token = request.json.get("id_token")
     try:
         decoded = firebase_auth.verify_id_token(id_token)
-        access_token = create_access_token(identity=decoded["email"])
-        return jsonify({"access_token": access_token}), 200
-    except Exception:
-        return jsonify({"msg": "Token inválido"}), 401
+        email = decoded["email"]
 
+        # 1) Verifico si ya existe en mi tabla usuario
+        with db.obtener_conexion() as cn, cn.cursor() as cur:
+            cur.execute("SELECT id_user FROM usuario WHERE email = %s", (email,))
+            fila = cur.fetchone()
+
+            if not fila:
+                # 2) Si no existe, lo creo con rol = 'Usuario' (id_rol = 1)
+                cur.execute(
+                    "INSERT INTO usuario (email, pass, id_rol) VALUES (%s, %s, %s)",
+                    (email, "", 1)
+                )
+                cn.commit()
+                # opcionalmente generar también un lector (si siempre los usuarios son lectores)
+                cur.execute("SELECT LAST_INSERT_ID()")
+                new_id = cur.fetchone()[0]
+                cur.execute(
+                    "INSERT INTO lector (dni_lec, nom_lec, apellidos_lec, id_user) "
+                    "VALUES (%s, %s, %s, %s)",
+                    ("", "", "", new_id)
+                )
+                cn.commit()
+
+        # 3) Ya tengo o creé al usuario, genero mi JWT interno
+        access_token = create_access_token(identity=email)
+        return jsonify({"access_token": access_token}), 200
+
+    except Exception as e:
+        current_app.logger.exception("auth_google falló")
+        return jsonify({"msg": "Token inválido o error interno"}), 401
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 @app.route("/upload_portada", methods=["POST"])
 @jwt_required()
