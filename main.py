@@ -40,12 +40,12 @@ app.config["JWT_SECRET_KEY"] = "secret"
 jwt = JWTManager(app)
 
 
-sa_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-if not sa_path or not os.path.isfile(sa_path):
-    raise RuntimeError("No se encontró el JSON de service account de Firebase")
-cred = credentials.Certificate(sa_path)
-firebase_admin.initialize_app(cred)
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+sa_path  = os.path.join(BASE_DIR, 'db', 'firebase_sa.json')
 
+if not firebase_admin._apps:
+    cred = credentials.Certificate(sa_path)
+    firebase_admin.initialize_app(cred)
 
 REPO_PATH = "/home/grupo1damb/mysite/backendMoviles"
 
@@ -98,10 +98,9 @@ def auth_google():
     id_token = request.json.get("id_token")
     try:
         decoded = firebase_auth.verify_id_token(id_token)
-        # decoded["email"], decoded["uid"], …
         access_token = create_access_token(identity=decoded["email"])
         return jsonify({"access_token": access_token}), 200
-    except Exception as e:
+    except Exception:
         return jsonify({"msg": "Token inválido"}), 401
 
 
