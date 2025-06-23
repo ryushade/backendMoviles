@@ -204,51 +204,57 @@ def api_novedades():
 
 @app.route("/proveedor_dashboard", methods=["GET"])
 @jwt_required()
-def api_dashboard_proveedor():
-    email_user = get_jwt_identity()
+def obtener_dashboard_proveedor():
+    id_user = get_jwt_identity()
+
+    # Obtener número de publicaciones activas
+    query_activas = """
+        SELECT COUNT(*) AS count
+        FROM historieta h
+        JOIN volumen v ON h.id_historieta = v.id_historieta
+        WHERE h.estado = 'aprobado'
+        AND EXISTS (
+            SELECT 1 FROM proveedor p WHERE p.id_user = %s
+            AND h.id_historieta IN (
+                SELECT sp.id_historieta_creada
+                FROM solicitud_publicacion sp
+                WHERE sp.id_user = p.id_user
+            )
+        )
+    """
+
+    # Obtener número de publicaciones pendientes
+    query_pendientes = """
+        SELECT COUNT(*) AS count
+        FROM solicitud_publicacion
+        WHERE id_user = %s AND estado = 'pendiente'
+    """
+
+    # Obtener lista de volúmenes publicados
+    query_volumenes = """
+        SELECT v.id_volumen, v.titulo_volumen, h.titulo AS historieta, v.precio_venta, v.fecha_subida
+        FROM volumen v
+        JOIN historieta h ON h.id_historieta = v.id_historieta
+        JOIN solicitud_publicacion sp ON sp.id_historieta_creada = h.id_historieta
+        WHERE sp.id_user = %s
+    """
 
     with db.obtener_conexion() as conexion:
-        with conexion.cursor(DictCursor) as cursor:
-            # Obtener id_user
-            cursor.execute("SELECT id_user FROM usuario WHERE email = %s", (email_user,))
-            fila = cursor.fetchone()
-            if not fila:
-                return jsonify({"msg": "Usuario no encontrado"}), 404
-            id_user = fila["id_user"]
+        with conexion.cursor() as cursor:
+            cursor.execute(query_activas, (id_user,))
+            activas = cursor.fetchone()["count"]
 
-            # Contar publicaciones activas
-            cursor.execute("""
-                SELECT COUNT(*) AS total
-                FROM historieta
-                WHERE id_user = %s AND estado = 'activo'
-            """, (id_user,))
-            total_activas = cursor.fetchone()["total"]
+            cursor.execute(query_pendientes, (id_user,))
+            pendientes = cursor.fetchone()["count"]
 
-            # Contar solicitudes pendientes
-            cursor.execute("""
-                SELECT COUNT(*) AS total
-                FROM solicitud_publicacion
-                WHERE id_user = %s AND estado = 'pendiente'
-            """, (id_user,))
-            total_pendientes = cursor.fetchone()["total"]
-
-            # Obtener lista de publicaciones del proveedor
-            cursor.execute("""
-                SELECT h.id_historieta, h.titulo, h.portada_url, h.descripcion
-                FROM historieta h
-                WHERE h.id_user = %s
-                ORDER BY h.fecha_creacion DESC
-            """, (id_user,))
-            publicaciones = cursor.fetchall()
+            cursor.execute(query_volumenes, (id_user,))
+            volumenes = cursor.fetchall()
 
     return jsonify({
-        "code": 0,
-        "stats": {
-            "publicaciones_activas": total_activas,
-            "solicitudes_pendientes": total_pendientes
-        },
-        "publicaciones": publicaciones
-    }), 200
+        "activas": activas,
+        "pendientes": pendientes,
+        "volumenes": volumenes
+    })
 
 
 @app.route("/historietas/genero/<int:id_genero>", methods=["GET"])
