@@ -127,3 +127,71 @@ def obtener_detalle(id_ven: int) -> Tuple[Dict, List[Dict]]:
         det = cur.fetchall()
 
     return cab, det
+
+def crear_pedido_preliminar(id_user: int, amount_cents: int) -> int:
+    """
+    Inserta una venta PENDIENTE (estado_ven = 0) con el monto y devuelve su id_ven.
+    """
+    with db.obtener_conexion() as cn, cn.cursor() as cur:
+        cur.execute("""
+            INSERT INTO venta (id_user, estado_ven, monto_cents)
+            VALUES (%s, %s, %s)
+        """, (id_user, 0, amount_cents))  # <–– usar 0 en vez de 'PENDIENTE'
+        cn.commit()
+        return cur.lastrowid
+
+
+def confirmar_venta_from_intent(payment_intent_id: str, carrito: list, id_user: int) -> int:
+    with db.obtener_conexion() as cn, cn.cursor() as cur:
+        cn.begin()
+        # 1) Recuperar id_ven
+        cur.execute("""
+            SELECT id_ven
+              FROM venta
+             WHERE stripe_pi_id = %s
+               AND id_user      = %s
+        """, (payment_intent_id, id_user))
+        fila = cur.fetchone()
+        if not fila:
+            raise ValueError("Venta preliminar no encontrada")
+        id_ven = fila["id_ven"] if isinstance(fila, dict) else fila[0]
+
+        # 2) Marcar como completada
+        cur.execute("""
+            UPDATE venta
+               SET estado_ven = 1,
+                   fec_ven    = NOW()
+             WHERE id_ven = %s
+        """, (id_ven,))
+
+        # 3) Para cada item, recuperar precio real y guardar detalle
+        for item in carrito:
+            id_vol = int(item["id_volumen"])
+            cantidad = int(item.get("cantidad", 1))
+
+            # Busca el precio en la tabla volumen
+            cur.execute(
+                "SELECT precio_venta FROM volumen WHERE id_volumen = %s",
+                (id_vol,)
+            )
+            vol = cur.fetchone()
+            if not vol:
+                raise ValueError(f"Volumen {id_vol} no existe")
+            precio = float(vol["precio_venta"] if isinstance(vol, dict) else vol[0])
+
+            cur.execute("""
+                INSERT INTO detalle_venta
+                    (id_venta, id_volumen, precio_ven, cantidad)
+                VALUES (%s,       %s,         %s,        %s)
+            """, (id_ven, id_vol, precio, cantidad))
+
+        # 4) Vaciar carrito
+        cur.execute("SELECT id_carrito FROM carrito WHERE id_user = %s", (id_user,))
+        fc = cur.fetchone()
+        if fc:
+            id_car = fc["id_carrito"] if isinstance(fc, dict) else fc[0]
+            cur.execute("DELETE FROM detalle_carrito WHERE id_detalle_carrito = %s", (id_car,))
+            cur.execute("DELETE FROM carrito WHERE id_carrito = %s", (id_car,))
+
+        cn.commit()
+        return id_ven

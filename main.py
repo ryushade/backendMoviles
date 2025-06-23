@@ -600,35 +600,57 @@ def obtener_dni_lec():
 @app.route("/api_guardar_venta", methods=["POST"])
 @jwt_required()
 def api_guardar_venta():
+    data              = request.get_json(force=True)
+    carrito           = data.get("carrito")
+    payment_intent_id = data.get("payment_intent_id")
+
+    # 1) Validaciones básicas
+    if not carrito or not isinstance(carrito, list):
+        return jsonify({"code": 1, "msg": "Carrito vacío o inválido"}), 400
+    if not payment_intent_id:
+        return jsonify({"code": 1, "msg": "Falta payment_intent_id"}), 400
+
+    # 2) Verificar con Stripe que el pago se completó
     try:
-        data = request.get_json(force=True)
-        carrito = data.get("carrito")
+        intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+    except stripe.error.StripeError as e:
+        current_app.logger.exception("Error al consultar PaymentIntent")
+        return jsonify({"code": 1, "msg": "Error al verificar pago"}), 500
 
-        if not carrito or not isinstance(carrito, list):
-            return jsonify({"code": 1, "msg": "Carrito vacío o inválido"}), 400
+    if intent.status != "succeeded":
+        return jsonify({"code": 1, "msg": "Pago no confirmado"}), 400
 
-        # 1) Obtener email desde el JWT
-        email = get_jwt_identity()
+    # 3) Resuelve id_user a partir del email del JWT
+    email = get_jwt_identity()
+    with db.obtener_conexion() as cn, cn.cursor() as cur:
+        cur.execute(
+            "SELECT id_user FROM usuario WHERE email = %s",
+            (email,)
+        )
+        fila = cur.fetchone()
 
-        # 2) Resolver id_user en la base de datos
-        with db.obtener_conexion() as cn, cn.cursor() as cur:
-            cur.execute("SELECT id_user FROM usuario WHERE email = %s", (email,))
-            fila = cur.fetchone()
-        if not fila:
-            return jsonify({"code": 1, "msg": "Usuario no encontrado"}), 404
+    if not fila:
+        return jsonify({"code": 1, "msg": "Usuario no encontrado"}), 404
 
-        id_user = fila["id_user"] if isinstance(fila, dict) else fila[0]
+    id_user = fila["id_user"] if isinstance(fila, dict) else fila[0]
 
-        # 3) Crear la venta
-        id_ven = venta_service.crear_venta(id_user, carrito)
+    # 4) Confirma y registra la venta
+    try:
+        id_ven = venta_service.confirmar_venta_from_intent(
+            payment_intent_id,
+            carrito,
+            id_user
+        )
         return jsonify({"code": 0, "id_venta": id_ven}), 201
 
     except ValueError as ve:
+        # errores de lógica en el servicio (venta no encontrada, etc.)
         return jsonify({"code": 1, "msg": str(ve)}), 400
 
     except Exception:
         current_app.logger.exception("api_guardar_venta")
-        return jsonify({"code": 1, "msg": "Error interno del servidor"}), 500
+        return jsonify({"code": 1, "msg": "Error interno al guardar venta"}), 500
+
 
 
 def _resolve_id_user_from_jwt():
@@ -670,25 +692,43 @@ def api_eliminar_wishlist(id_volumen):
 @app.route("/payment-sheet", methods=["POST"])
 @jwt_required()
 def api_payment_sheet():
-    data = request.get_json(force=True)
+    data         = request.get_json(force=True)
     amount_cents = int(data.get("amount_cents", 0))
+
     if amount_cents <= 0:
         return jsonify({"msg": "amount_cents inválido"}), 400
 
+    # 1) Resuelve id_user
     email = get_jwt_identity()
+    with db.obtener_conexion() as cn, cn.cursor() as cur:
+        cur.execute("SELECT id_user FROM usuario WHERE email = %s", (email,))
+        fila = cur.fetchone()
+    if not fila:
+        return jsonify({"msg": "Usuario no encontrado"}), 404
+    id_user = fila["id_user"] if isinstance(fila, dict) else fila[0]
 
+    # 2) Inserta venta preliminar y obtén order_id
     try:
-        payload = stripe_service.generar_payment_sheet(amount_cents, email)
+        order_id = venta_service.crear_pedido_preliminar(id_user, amount_cents)
+    except Exception:
+        current_app.logger.exception("crear_pedido_preliminar")
+        return jsonify({"msg": "Error al crear pedido preliminar"}), 500
+
+    # 3) Llama a stripe_service con la nueva firma
+    try:
+        payload = stripe_service.generar_payment_sheet(
+            amount_cents,
+            order_id,
+            email
+        )
         return jsonify(payload), 200
 
     except ValueError as e:
-        # Errores de validación (por ejemplo amount < 50 céntimos)
         return jsonify({"msg": str(e)}), 400
 
-    except Exception as exc:
+    except Exception:
         current_app.logger.exception("api_payment_sheet")
         return jsonify({"msg": "Error interno al crear payment sheet"}), 500
-
     
     
 @app.route("/")
