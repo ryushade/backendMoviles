@@ -65,22 +65,39 @@ def mas_vendidas(limit: int = 24):
         return _rows_to_json(cur.fetchall())
 
 
-def por_genero(id_genero: int, limit: int = 24):
+def mas_vendidos(limit: int = 10) -> list[dict]:
     """
-    Volúmenes cuyo historieta tenga el género indicado.
+    Retorna una lista de los volúmenes más vendidos, ordenados por cantidad total vendida.
+    Cada elemento incluye: id_volumen, titulo, portada_url y total_vendido.
     """
-    with db.obtener_conexion() as cn, cn.cursor(DictCursor) as cur:
-        cur.execute(
-            """
-            SELECT v.id_volumen, v.titulo_volumen, v.precio_venta,
-                   h.portada_url, h.anio_publicacion
-              FROM historieta_genero g
-              JOIN historieta h      ON h.id_historieta = g.id_historieta
-              JOIN volumen    v      ON v.id_historieta = h.id_historieta
-             WHERE g.id_genero = %s
-          ORDER BY v.fecha_publicacion DESC
-             LIMIT %s
-            """,
-            (id_genero, limit),
-        )
-        return _rows_to_json(cur.fetchall())
+    sql = """
+    SELECT
+      v.id_volumen,
+      v.titulo,
+      v.portada_url,
+      COALESCE(SUM(dv.cantidad), 0) AS total_vendido
+    FROM volumen v
+    LEFT JOIN detalle_venta dv ON dv.id_volumen = v.id_volumen
+    GROUP BY v.id_volumen, v.titulo, v.portada_url
+    ORDER BY total_vendido DESC
+    LIMIT %s
+    """
+    with db.obtener_conexion() as cn, cn.cursor() as cur:
+        cur.execute(sql, (limit,))
+        filas = cur.fetchall()
+
+    # Normaliza a lista de dicts
+    resultados = []
+    for fila in filas:
+        # fila puede ser tuple o dict según tu configuración de cursor
+        id_vol    = fila["id_volumen"]    if isinstance(fila, dict) else fila[0]
+        titulo    = fila["titulo"]        if isinstance(fila, dict) else fila[1]
+        portada   = fila["portada_url"]   if isinstance(fila, dict) else fila[2]
+        vendidos  = fila["total_vendido"] if isinstance(fila, dict) else fila[3]
+        resultados.append({
+            "id_volumen":   id_vol,
+            "titulo":       titulo,
+            "portada_url":  portada,
+            "total_vendido": int(vendidos)
+        })
+    return resultados

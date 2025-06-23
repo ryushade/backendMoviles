@@ -596,6 +596,20 @@ def obtener_dni_lec():
     except Exception as e:
         return jsonify({"code": 1, "msg": f"Error al obtener el dni_lec: {str(e)}"}), 500
     
+
+@app.route("/api/volumenes/mas-vendidos", methods=["GET"])
+@jwt_required()
+def api_volumenes_mas_vendidos():
+    """
+    Devuelve los 10 volúmenes con mayor cantidad vendida.
+    """
+    try:
+        data = hist_srv.mas_vendidos(limit=10)
+        return jsonify({"code": 0, "data": data}), 200
+    except Exception as e:
+        current_app.logger.exception("api_volumenes_mas_vendidos")
+        return jsonify({"code": 1, "msg": "Error interno al obtener más vendidos"}), 500
+
     
 @app.route("/api_guardar_venta", methods=["POST"])
 @jwt_required()
