@@ -108,3 +108,20 @@ def serve_page(id_vol:int, chapter:str, filename:str):   # ← registrado en mai
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     img.save(dst,"JPEG",quality=85,optimize=True,progressive=True)
     return send_file(dst,mimetype="image/jpeg",max_age=31536000)
+
+
+def usuario_compro_volumen(email_user: str, id_vol: int) -> bool:
+    """
+    Devuelve True si el usuario con ese email compró el volumen, False en caso contrario.
+    """
+    with db.obtener_conexion() as cn, cn.cursor(DictCursor) as cursor:
+        cursor.execute("""
+            SELECT 1
+              FROM venta v
+              JOIN usuario u       ON v.id_user = u.id_user
+              JOIN venta_item vi   ON v.id_ven  = vi.id_ven
+             WHERE u.email       = %s
+               AND vi.id_volumen = %s
+             LIMIT 1
+        """, (email_user, id_vol))
+        return cursor.fetchone() is not None

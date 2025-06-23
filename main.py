@@ -181,6 +181,12 @@ def api_aprobar_publicacion():
     resp, status = publicacion_service.aprobar_solicitud(id_solicitud, id_admin)
     return jsonify(resp), status
 
+@app.route("/api_borrar_solicitud_publicacion/<int:id_solicitud>", methods=["DELETE"])
+@jwt_required()
+def borrar_solicitud_publicacion(id_solicitud):
+    resp, status = proveedor_service.borrar_solicitud_publicacion(id_solicitud)
+    return jsonify(resp), status
+
 
 @app.route("/historietas/novedades", methods=["GET"])
 @jwt_required()
@@ -210,9 +216,36 @@ def api_ficha(id_vol):
 
 # capítulos y páginas
 @app.route("/volumenes/<int:id_vol>/chapters", methods=["GET"])
-def api_caps(id_vol):
-    resp, st = vol_srv.listar_capitulos(id_vol)
-    return jsonify(resp), st
+@jwt_required()
+def api_listar_capitulos(id_vol):
+    # 1) Obtengo el email del usuario
+    email_user = get_jwt_identity()
+
+    # 2) Compruebo si lo ha comprado
+    comprado = vol_srv.usuario_compro_volumen(email_user, id_vol)
+
+    # 3) Listo todos los capítulos
+    resp, status = vol_srv.listar_capitulos(id_vol)
+    if resp.get("code") != 0:
+        return jsonify(resp), status
+
+    chapters: list[str] = resp["chapters"]
+
+    # 4) Si NO lo ha comprado, sólo dejo el primero y marco locked
+    if not comprado:
+        primeros = chapters[:1] if chapters else []
+        return jsonify({
+            "code": 0,
+            "chapters": primeros,
+            "locked": True
+        }), 200
+
+    # 5) Si lo ha comprado, devuelvo todo normalmente
+    return jsonify({
+        "code": 0,
+        "chapters": chapters,
+        "locked": False
+    }), 200
 
 @app.route("/volumenes/<int:id_vol>/chapters/<chapter>/pages", methods=["GET"])
 def api_pages(id_vol, chapter):

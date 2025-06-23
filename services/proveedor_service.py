@@ -218,6 +218,23 @@ def rechazar_solicitud_publicacion(id_solicitud):
     except Exception as e:
         print("Error al rechazar solicitud:", e)
         return {"code": 1, "msg": "Error interno del servidor"}, 500
+    
+def borrar_solicitud_publicacion(id_solicitud):
+    try:
+        with db.obtener_conexion() as conexion:
+            with conexion.cursor() as cursor:
+                cursor.execute(
+                    "DELETE FROM solicitud_publicacion WHERE id_solicitud = %s",
+                    (id_solicitud,)
+                )
+                conexion.commit()
+                if cursor.rowcount == 0:
+                    return {"code": 1, "msg": "Solicitud no encontrada"}, 404
+                return {"code": 0, "msg": "Solicitud borrada correctamente."}, 200
+
+    except Exception:
+        current_app.logger.exception("borrar_solicitud_publicacion")
+        return {"code": 1, "msg": "Error interno del servidor"}, 500
 
 
 
