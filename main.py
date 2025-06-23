@@ -313,14 +313,15 @@ def eliminar_solicitud_proveedor():
     id_user = data["id_user"]
     return usuario_service.eliminar_solicitud_proveedor(id_user)    
 
-@app.route("/api_eliminar_solicitud_publicacion", methods=["POST"])
+@app.route("/api_rechazar_solicitud_publicacion", methods=["POST"])
 @jwt_required()
-def eliminar_solicitud_publicacion():
-    data = request.json
-    if not data or "id_solicitud" not in data:
-        return jsonify({"code": 1, "msg": "Datos de eliminación no proporcionados"}), 400
+def rechazar_solicitud_publicacion():
+    data = request.get_json(silent=True) or {}
+    if "id_solicitud" not in data:
+        return jsonify({"code": 1, "msg": "Datos de rechazo no proporcionados"}), 400
     id_solicitud = data["id_solicitud"]
-    return proveedor_service.eliminar_solicitud_publicacion(id_solicitud)
+    return proveedor_service.rechazar_solicitud_publicacion(id_solicitud)
+
 
 @app.route("/api_registrar_administrador", methods=["POST"])
 @jwt_required()
@@ -435,7 +436,6 @@ def obtener_solicitudes():
     email_user = get_jwt_identity()
     if not email_user:
         return jsonify({"success": False, "message": "Usuario no autenticado"}), 401
-
     respuesta, status = proveedor_service.getMisSolicitudes(email_user)
     return jsonify(respuesta), status
 

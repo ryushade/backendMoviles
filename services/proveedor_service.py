@@ -127,6 +127,7 @@ def getMisSolicitudes(email_user):
                     FROM solicitud_publicacion sp
                     JOIN usuario u ON sp.id_user = u.id_user
                     WHERE u.email = %s
+                    AND sp.estado IN ('pendiente', 'rechazado', 'aprobado')
                     ORDER BY sp.fecha_solicitud DESC
                     """,
                     (email_user,)
@@ -172,25 +173,30 @@ def editar_solicitud_publicacion(data):
         print("Error al editar solicitud:", e)
         return {"code": 1, "msg": "Error interno del servidor"}, 500
     
-def eliminar_solicitud_publicacion(id_solicitud):
+def rechazar_solicitud_publicacion(id_solicitud):
     try:
         with db.obtener_conexion() as conexion:
             with conexion.cursor() as cursor:
                 cursor.execute(
                     """
-                    DELETE FROM solicitud_publicacion
-                    WHERE id_solicitud = %s
-                    """, (id_solicitud,))
+                    UPDATE solicitud_publicacion
+                       SET estado = 'rechazado',
+                           fecha_respuesta = NOW()
+                     WHERE id_solicitud = %s
+                    """,
+                    (id_solicitud,)
+                )
                 conexion.commit()
 
                 if cursor.rowcount == 0:
                     return {"code": 1, "msg": "Solicitud no encontrada"}, 404
 
-                return {"code": 0, "msg": "Solicitud eliminada correctamente."}, 200
+                return {"code": 0, "msg": "Solicitud rechazada correctamente."}, 200
 
     except Exception as e:
-        print("Error al eliminar solicitud:", e)
-        return {"code": 1, "msg": "Error interno del servidor"}, 500    
+        print("Error al rechazar solicitud:", e)
+        return {"code": 1, "msg": "Error interno del servidor"}, 500
+
 
 
 
