@@ -937,12 +937,28 @@ def api_devolucion():
     if not id_ven:
         return jsonify({"msg": "Falta id_ven"}), 400
 
+    # 1) Obtener datos de la venta
     venta = venta_service.obtener_venta_por_id(id_ven)
-    if not venta or venta.id_user != get_jwt_identity() or venta.estado_ven != 1:
+    if not venta:
+        return jsonify({"msg": "Venta no encontrada"}), 404
+
+    # 2) Verificar que la venta pertenece al usuario autenticado
+    email_user = get_jwt_identity()
+    with db.obtener_conexion() as cn, cn.cursor() as cur:
+        cur.execute("SELECT id_user FROM usuario WHERE email = %s", (email_user,))
+        user_row = cur.fetchone()
+    
+    if not user_row:
+        return jsonify({"msg": "Usuario no encontrado"}), 404
+    
+    user_id = user_row["id_user"] if isinstance(user_row, dict) else user_row[0]
+    
+    # 3) Validar que la venta pertenece al usuario y está en estado válido
+    if venta["id_user"] != user_id or venta["estado_ven"] != 1:
         return jsonify({"msg": "Venta no válida o ya reembolsada"}), 400
 
     try:
-        refund = stripe_service.crear_devolucion(venta.stripe_pi_id, venta.monto_cents)
+        refund = stripe_service.crear_devolucion(venta["stripe_pi_id"], venta["monto_cents"])
     except stripe.error.StripeError:
         current_app.logger.exception("Error creando refund en Stripe")
         return jsonify({"msg": "Error procesando devolución"}), 500
