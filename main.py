@@ -50,12 +50,16 @@ if not firebase_admin._apps:
 REPO_PATH = "/home/grupo1damb/mysite/backendMoviles"
 
 WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET")
-if not WEBHOOK_SECRET:
-    raise RuntimeError("GITHUB_WEBHOOK_SECRET no está configurado en las variables de entorno.")
-WEBHOOK_SECRET = WEBHOOK_SECRET.encode()
+if WEBHOOK_SECRET:
+    WEBHOOK_SECRET = WEBHOOK_SECRET.encode()
+else:
+    print("[WARNING] GITHUB_WEBHOOK_SECRET no está configurado. Webhook deshabilitado.")
+    WEBHOOK_SECRET = None
 
 def is_valid_signature(x_hub_signature, data):
     """Verifica la firma HMAC del webhook de GitHub."""
+    if not WEBHOOK_SECRET:
+        return False
     if not x_hub_signature:
         return False
     try:
