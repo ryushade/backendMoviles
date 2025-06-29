@@ -148,27 +148,56 @@ def auth_twitter():
     try:
         print(f"[DEBUG] Verificando token de Twitter...")
         
-        # 1) Verificamos el ID token de Firebase (esto funciona)
+        # 1) Verificamos el ID token de Firebase
         decoded = firebase_auth.verify_id_token(id_token)
         uid = decoded.get("uid")
         
-        # 2) Obtén email directamente del token (evita get_user)
-        email = decoded.get("email")
-        
         print(f"[DEBUG] UID: {uid}")
+        print(f"[DEBUG] Token decoded: {decoded}")
+        
+        # 2) Intentar obtener email del token primero
+        email = decoded.get("email")
         print(f"[DEBUG] Email from token: {email}")
         
+        # 3) Si no hay email en el token, obtener del registro de usuario de Firebase
         if not email:
-            # Twitter a veces no proporciona email
+            try:
+                print(f"[DEBUG] Email no encontrado en token, obteniendo del usuario de Firebase...")
+                user_record = firebase_auth.get_user(uid)
+                email = user_record.email
+                print(f"[DEBUG] Email from Firebase user record: {email}")
+                
+                # También podemos obtener información adicional del usuario
+                display_name = user_record.display_name
+                photo_url = user_record.photo_url
+                print(f"[DEBUG] Display name: {display_name}")
+                print(f"[DEBUG] Photo URL: {photo_url}")
+                
+                # Verificar proveedores de autenticación
+                for provider in user_record.provider_data:
+                    print(f"[DEBUG] Provider: {provider.provider_id}, Email: {provider.email}")
+                    if provider.provider_id == "twitter.com" and provider.email:
+                        email = provider.email
+                        print(f"[DEBUG] Using Twitter provider email: {email}")
+                        break
+                        
+            except Exception as firebase_error:
+                print(f"[DEBUG] Error obteniendo usuario de Firebase: {str(firebase_error)}")
+                # Si aún no podemos obtener el email, usar el UID como fallback
+                email = None
+        
+        # 4) Si aún no tenemos email, generar uno basado en el UID
+        if not email:
             email = f"twitter_{uid}@mangaka.app"
-            print(f"[DEBUG] Email generado: {email}")
+            print(f"[DEBUG] Email generado como fallback: {email}")
 
-        # 3) Resto del código igual (crear/buscar usuario)
+        # 5) Resto del código igual (crear/buscar usuario)
         with db.obtener_conexion() as cn, cn.cursor(DictCursor) as cur:
             cur.execute("SELECT id_user FROM usuario WHERE email = %s", (email,))
             fila = cur.fetchone()
 
             if not fila:
+                print(f"[DEBUG] Creando nuevo usuario con email: {email}")
                 cur.execute(
                     "INSERT INTO usuario (email, pass, id_rol) VALUES (%s, %s, %s)",
                     (email, "", 1)
@@ -181,9 +210,13 @@ def auth_twitter():
                     ("", "", "", new_user_id)
                 )
                 cn.commit()
+                print(f"[DEBUG] Usuario creado con ID: {new_user_id}")
+            else:
+                print(f"[DEBUG] Usuario existente encontrado: {fila['id_user']}")
 
-        # 4) Generar JWT
+        # 6) Generar JWT
         access_token = create_access_token(identity=email)
+        print(f"[DEBUG] JWT generado para: {email}")
         return jsonify({"access_token": access_token}), 200
 
     except Exception as e:
