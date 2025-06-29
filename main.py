@@ -224,17 +224,6 @@ def auth_twitter():
         current_app.logger.exception("auth_twitter falló")
         return jsonify({"msg": f"Token inválido o error interno: {str(e)}"}), 401
     
-
-from flask import Flask, request, jsonify, current_app
-from pymysql.cursors import DictCursor
-from flask_jwt_extended import create_access_token
-import db.database as db
-import firebase_admin
-from firebase_admin import auth as firebase_auth
-
-app = Flask(__name__)
-# ... configuración de Flask y JWTManager ...
-
 @app.route("/auth_facebook", methods=["POST"])
 def auth_facebook():
     id_token = request.json.get("id_token")
