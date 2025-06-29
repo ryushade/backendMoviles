@@ -926,7 +926,37 @@ def get_comentarios(id_historieta):
     except Exception as e:
         current_app.logger.exception("Error al obtener comentarios")
         return jsonify({"msg": "Error interno al obtener comentarios"}), 500
-    
+
+@app.route("/api_devolucion", methods=["POST"])
+@jwt_required()
+def api_devolucion():
+    data = request.get_json(force=True)
+    id_ven = data.get("id_ven")
+    motivo = data.get("motivo", "")
+
+    if not id_ven:
+        return jsonify({"msg": "Falta id_ven"}), 400
+
+    venta = venta_service.obtener_venta_por_id(id_ven)
+    if not venta or venta.id_user != get_jwt_identity() or venta.estado_ven != 1:
+        return jsonify({"msg": "Venta no válida o ya reembolsada"}), 400
+
+    try:
+        refund = stripe_service.crear_devolucion(venta.stripe_pi_id, venta.monto_cents)
+    except stripe.error.StripeError:
+        current_app.logger.exception("Error creando refund en Stripe")
+        return jsonify({"msg": "Error procesando devolución"}), 500
+
+    # Grabar en BD tabla devoluciones y marcar venta
+    venta_service.registrar_devolucion(
+        id_ven,
+        refund.id,
+        refund.amount,
+        refund.status,
+        motivo
+    )
+
+    return jsonify({"refund_id": refund.id, "status": refund.status}), 200   
     
 @app.route("/api/users/items", methods=["GET"])
 @jwt_required()

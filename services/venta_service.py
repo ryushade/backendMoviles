@@ -5,6 +5,23 @@ from pymysql.cursors import DictCursor
 import db.database as db
 
 
+def obtener_venta_por_id(id_ven: int) -> dict | None:
+
+    sql = """
+        SELECT 
+          id_ven,
+          id_user,
+          stripe_pi_id,
+          monto_cents,
+          estado_ven
+        FROM venta
+        WHERE id_ven = %s
+    """
+    with db.obtener_conexion() as cn, cn.cursor(DictCursor) as cur:
+        cur.execute(sql, (id_ven,))
+        return cur.fetchone()
+
+
 def crear_venta(id_user: int, carrito: List[Dict]) -> int:
     """
     Inserta una nueva venta y sus líneas de detalle usando el esquema actual,
@@ -64,7 +81,22 @@ def crear_venta(id_user: int, carrito: List[Dict]) -> int:
 
     return id_ven
 
-
+def registrar_devolucion(
+    id_ven: int,
+    stripe_refund_id: str,
+    amount: int,
+    status: str,
+    motivo: str
+):
+    # Inserta en tu tabla devoluciones y actualiza estado de venta
+    with db.obtener_conexion() as cn, cn.cursor() as cur:
+        cur.execute("""
+            INSERT INTO devolucion (
+                venta_id, stripe_refund_id, monto_cents, estado, motivo
+            ) VALUES (%s, %s, %s, %s, %s)
+        """, (id_ven, stripe_refund_id, amount, status, motivo))
+        cur.execute("UPDATE venta SET estado_ven = 2 WHERE id_ven = %s", (id_ven,))
+        cn.commit()
 
 # ──────────────────────────────────────────────────────────────────────
 #  CONSULTAS

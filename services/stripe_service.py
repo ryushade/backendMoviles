@@ -5,6 +5,7 @@ import stripe
 import logging
 from typing import Dict, Any
 import db.database as db  # Ajusta el import según tu estructura de proyecto
+import uuid
 
 log = logging.getLogger(__name__)
 
@@ -36,6 +37,20 @@ def _get_or_create_customer(email: str | None = None) -> stripe.Customer:
         metadata={"app_email": email or ""},
     )
 
+
+def crear_devolucion(payment_intent_id: str, amount_cents: int) -> stripe.Refund:
+    """
+    Crea un reembolso en Stripe para el PaymentIntent dado.
+    - payment_intent_id: el ID que guardaste en venta.stripe_pi_id
+    - amount_cents: monto a reembolsar en céntimos
+    """
+    refund = stripe.Refund.create(
+        payment_intent=payment_intent_id,
+        amount=amount_cents,
+        idempotency_key=str(uuid.uuid4())
+    )
+    log.debug("Refund %s creado para PI %s (%s céntimos)", refund.id, payment_intent_id, amount_cents)
+    return refund
 
 def _save_stripe_pi(order_id: int, pi_id: str) -> None:
     """
@@ -98,3 +113,4 @@ def generar_payment_sheet(
         "ephemeralKey":   ekey.secret,
         "paymentIntent":  intent.client_secret,
     }
+
