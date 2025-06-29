@@ -138,6 +138,55 @@ def auth_google():
     except Exception as e:
         current_app.logger.exception("auth_google falló")
         return jsonify({"msg": f"Token inválido o error interno: {str(e)}"}), 401
+    
+@app.route("/auth_twitter", methods=["POST"])
+def auth_twitter():
+    id_token = request.json.get("id_token")
+    if not id_token:
+        return jsonify({"msg": "No se recibió id_token"}), 400
+
+    try:
+        # 1) Verificamos el ID token de Firebase
+        decoded = firebase_auth.verify_id_token(id_token)
+        uid = decoded.get("uid")
+        if not uid:
+            raise ValueError("Token sin UID válido")
+
+        # 2) Recuperamos datos completos del usuario en Firebase (para obtener email si no viene en el token)
+        user_record = firebase_auth.get_user(uid)
+        email = user_record.email
+        if not email:
+            raise ValueError("El proveedor de Twitter no proporcionó un email")
+
+        # 3) Comprobamos/creamos al usuario en nuestra BD
+        with db.obtener_conexion() as cn, cn.cursor(DictCursor) as cur:
+            cur.execute("SELECT id_user FROM usuario WHERE email = %s", (email,))
+            fila = cur.fetchone()
+
+            if not fila:
+                # a) Insertamos en usuario
+                cur.execute(
+                    "INSERT INTO usuario (email, pass, id_rol) VALUES (%s, %s, %s)",
+                    (email, "", 1)
+                )
+                new_user_id = cur.lastrowid
+
+                # b) Insertamos registro en lector (si así lo deseas)
+                cur.execute(
+                    "INSERT INTO lector (dni_lec, nom_lec, apellidos_lec, id_user) "
+                    "VALUES (%s, %s, %s, %s)",
+                    ("", "", "", new_user_id)
+                )
+                cn.commit()
+
+        # 4) Generamos nuestro JWT interno
+        access_token = create_access_token(identity=email)
+        return jsonify({"access_token": access_token}), 200
+
+    except Exception as e:
+        current_app.logger.exception("auth_twitter falló")
+        return jsonify({"msg": f"Token inválido o error interno: {str(e)}"}), 401
+    
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
