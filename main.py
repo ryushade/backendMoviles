@@ -1019,6 +1019,14 @@ def privacy_policy():
     """
     return render_template('privacy_policy.html')
 
+@app.route("/terms-of-service")
+def terms_of_service():
+    """
+    Página de términos de servicio requerida para autenticación con Twitter.
+    Esta URL debe ser proporcionada en la configuración de la app de Twitter.
+    """
+    return render_template('terms_of_service.html')
+
 
 #! Iniciar el servidor
 if __name__ == "__main__":
