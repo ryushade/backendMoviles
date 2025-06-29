@@ -225,6 +225,16 @@ def auth_twitter():
         return jsonify({"msg": f"Token inválido o error interno: {str(e)}"}), 401
     
 
+from flask import Flask, request, jsonify, current_app
+from pymysql.cursors import DictCursor
+from flask_jwt_extended import create_access_token
+import db.database as db
+import firebase_admin
+from firebase_admin import auth as firebase_auth
+
+app = Flask(__name__)
+# ... configuración de Flask y JWTManager ...
+
 @app.route("/auth_facebook", methods=["POST"])
 def auth_facebook():
     id_token = request.json.get("id_token")
@@ -232,83 +242,75 @@ def auth_facebook():
         return jsonify({"msg": "No se recibió id_token"}), 400
 
     try:
-        print(f"[DEBUG] Verificando token de Facebook...")
-        
         # 1) Verificamos el ID token de Firebase
         decoded = firebase_auth.verify_id_token(id_token)
         uid = decoded.get("uid")
-        
-        print(f"[DEBUG] UID: {uid}")
-        print(f"[DEBUG] Token decoded: {decoded}")
-        
-        # 2) Intentar obtener email del token primero
+
+        # 2) Intentar obtener email del token
         email = decoded.get("email")
-        print(f"[DEBUG] Email from token: {email}")
-        
-        # 3) Si no hay email en el token, obtener del registro de usuario de Firebase
         if not email:
-            try:
-                print(f"[DEBUG] Email no encontrado en token, obteniendo del usuario de Firebase...")
-                user_record = firebase_auth.get_user(uid)
-                email = user_record.email
-                print(f"[DEBUG] Email from Firebase user record: {email}")
-                
-                # También podemos obtener información adicional del usuario
-                display_name = user_record.display_name
-                photo_url = user_record.photo_url
-                print(f"[DEBUG] Display name: {display_name}")
-                print(f"[DEBUG] Photo URL: {photo_url}")
-                
-                # Verificar proveedores de autenticación
-                for provider in user_record.provider_data:
-                    print(f"[DEBUG] Provider: {provider.provider_id}, Email: {provider.email}")
-                    if provider.provider_id == "facebook.com" and provider.email:
-                        email = provider.email
-                        print(f"[DEBUG] Using Facebook provider email: {email}")
-                        break
-                        
-            except Exception as firebase_error:
-                print(f"[DEBUG] Error obteniendo usuario de Firebase: {str(firebase_error)}")
-                # Si aún no podemos obtener el email, usar el UID como fallback
-                email = None
-        
-        # 4) Si aún no tenemos email, generar uno basado en el UID
+            # 3) Si no hay email en el token, sacamos del usuario de Firebase
+            user_record = firebase_auth.get_user(uid)
+            email = user_record.email
+            # Si Facebook fue proveedor y trae email distinto, lo priorizamos
+            for provider in user_record.provider_data:
+                if provider.provider_id == "facebook.com" and provider.email:
+                    email = provider.email
+                    break
+
+        # 4) Si aún no hay email, generamos uno de fallback
         if not email:
             email = f"facebook_{uid}@mangaka.app"
-            print(f"[DEBUG] Email generado como fallback: {email}")
 
-        # 5) Resto del código igual (crear/buscar usuario)
+        # 5) Conexión a la base de datos
         with db.obtener_conexion() as cn, cn.cursor(DictCursor) as cur:
+            # 5a) Buscamos en tabla usuario
             cur.execute("SELECT id_user FROM usuario WHERE email = %s", (email,))
             fila = cur.fetchone()
 
             if not fila:
+                # 5b) Si no existe, creamos usuario + lector
                 print(f"[DEBUG] Creando nuevo usuario con email: {email}")
                 cur.execute(
                     "INSERT INTO usuario (email, pass, id_rol) VALUES (%s, %s, %s)",
                     (email, "", 1)
                 )
-                new_user_id = cur.lastrowid
+                id_user = cur.lastrowid
 
                 cur.execute(
                     "INSERT INTO lector (dni_lec, nom_lec, apellidos_lec, id_user) "
                     "VALUES (%s, %s, %s, %s)",
-                    ("", "", "", new_user_id)
+                    ("", "", "", id_user)
                 )
                 cn.commit()
-                print(f"[DEBUG] Usuario creado con ID: {new_user_id}")
-            else:
-                print(f"[DEBUG] Usuario existente encontrado: {fila['id_user']}")
+                print(f"[DEBUG] Usuario y lector creados con ID: {id_user}")
 
-        # 6) Generar JWT
+            else:
+                # 5c) Si usuario existe, nos aseguramos de que tenga lector
+                id_user = fila["id_user"]
+                cur.execute("SELECT 1 FROM lector WHERE id_user = %s", (id_user,))
+                lector_existe = cur.fetchone()
+                if not lector_existe:
+                    print(f"[DEBUG] Usuario {id_user} existe sin lector. Creando lector...")
+                    cur.execute(
+                        "INSERT INTO lector (dni_lec, nom_lec, apellidos_lec, id_user) "
+                        "VALUES (%s, %s, %s, %s)",
+                        ("", "", "", id_user)
+                    )
+                    cn.commit()
+                    print(f"[DEBUG] Lector creado para usuario {id_user}")
+                else:
+                    print(f"[DEBUG] Usuario {id_user} ya tiene lector asociado")
+
+        # 6) Generar y devolver JWT
         access_token = create_access_token(identity=email)
         print(f"[DEBUG] JWT generado para: {email}")
         return jsonify({"access_token": access_token}), 200
 
     except Exception as e:
-        print(f"[ERROR] auth_facebook: {str(e)}")
         current_app.logger.exception("auth_facebook falló")
         return jsonify({"msg": f"Token inválido o error interno: {str(e)}"}), 401
+
 
     
 
