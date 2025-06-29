@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, url_for, current_app
+from flask import Flask, request, jsonify, url_for, current_app, render_template
 from werkzeug.exceptions import RequestEntityTooLarge
 from pymysql.cursors import DictCursor
 from flask_jwt_extended import jwt_required, JWTManager, create_access_token, get_jwt_identity
@@ -1011,7 +1011,13 @@ def home():
     valor = "Grupo 01"
     return f"<p>Bienvenido, {valor}</p>"
 
-
+@app.route("/privacy-policy")
+def privacy_policy():
+    """
+    Página de política de privacidad requerida para autenticación con Twitter.
+    Esta URL debe ser proporcionada en la configuración de la app de Twitter.
+    """
+    return render_template('privacy_policy.html')
 
 
 #! Iniciar el servidor
@@ -1021,3 +1027,7 @@ if __name__ == "__main__":
 @app.errorhandler(413)
 def too_large(e):
     return {"msg": "El archivo es demasiado grande. Límite: 500 MB."}, 413
+
+@app.route('/politica_privacidad')
+def politica_privacidad():
+    return render_template('politica_privacidad.html'), 200
