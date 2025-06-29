@@ -41,9 +41,7 @@ app.config["JWT_SECRET_KEY"] = "secret"
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500 MB
 jwt = JWTManager(app)
 
-
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-sa_path  = os.path.join(BASE_DIR, 'db', 'firebase-sa.json')
+sa_path = os.path.join(BASE_DIR, 'db', 'firebase-sa.json')
 
 if not firebase_admin._apps:
     cred = credentials.Certificate(sa_path)
