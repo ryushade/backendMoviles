@@ -146,32 +146,35 @@ def auth_twitter():
         return jsonify({"msg": "No se recibió id_token"}), 400
 
     try:
-        # 1) Verificamos el ID token de Firebase
+        print(f"[DEBUG] Verificando token de Twitter...")
+        
+        # 1) Verificamos el ID token de Firebase (esto funciona)
         decoded = firebase_auth.verify_id_token(id_token)
         uid = decoded.get("uid")
-        if not uid:
-            raise ValueError("Token sin UID válido")
-
-        # 2) Recuperamos datos completos del usuario en Firebase (para obtener email si no viene en el token)
-        user_record = firebase_auth.get_user(uid)
-        email = user_record.email
+        
+        # 2) Obtén email directamente del token (evita get_user)
+        email = decoded.get("email")
+        
+        print(f"[DEBUG] UID: {uid}")
+        print(f"[DEBUG] Email from token: {email}")
+        
         if not email:
-            raise ValueError("El proveedor de Twitter no proporcionó un email")
+            # Twitter a veces no proporciona email
+            email = f"twitter_{uid}@mangaka.app"
+            print(f"[DEBUG] Email generado: {email}")
 
-        # 3) Comprobamos/creamos al usuario en nuestra BD
+        # 3) Resto del código igual (crear/buscar usuario)
         with db.obtener_conexion() as cn, cn.cursor(DictCursor) as cur:
             cur.execute("SELECT id_user FROM usuario WHERE email = %s", (email,))
             fila = cur.fetchone()
 
             if not fila:
-                # a) Insertamos en usuario
                 cur.execute(
                     "INSERT INTO usuario (email, pass, id_rol) VALUES (%s, %s, %s)",
                     (email, "", 1)
                 )
                 new_user_id = cur.lastrowid
 
-                # b) Insertamos registro en lector (si así lo deseas)
                 cur.execute(
                     "INSERT INTO lector (dni_lec, nom_lec, apellidos_lec, id_user) "
                     "VALUES (%s, %s, %s, %s)",
@@ -179,11 +182,12 @@ def auth_twitter():
                 )
                 cn.commit()
 
-        # 4) Generamos nuestro JWT interno
+        # 4) Generar JWT
         access_token = create_access_token(identity=email)
         return jsonify({"access_token": access_token}), 200
 
     except Exception as e:
+        print(f"[ERROR] auth_twitter: {str(e)}")
         current_app.logger.exception("auth_twitter falló")
         return jsonify({"msg": f"Token inválido o error interno: {str(e)}"}), 401
     
