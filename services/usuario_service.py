@@ -163,72 +163,70 @@ def get_items_usuario(id_user, tipo='purchases'):
     Devuelve para el usuario:
       - purchases: id_venta, portada, titulo, autores, fecha, id_volumen
                    (excluye ventas con devolución exitosa)
-      - wishlist : id_lista, portada, titulo, autores, fecha_agregado, id_volumen
+      - wishlist : id_lista,  portada, titulo, autores, fecha_agregado, id_volumen
     """
     try:
         with db.obtener_conexion() as conexion:
             with conexion.cursor(DictCursor) as cursor:
 
                 if tipo == 'purchases':
-                    # ────────────────────────────────────────────────────────────────
-                    #  Nota nueva:
-                    #  Se LEFT-JOIN la tabla devolucion *solo* en estado 'succeeded'
-                    #  y se descartan las filas donde esa coincidencia exista.
-                    # ────────────────────────────────────────────────────────────────
+                    #  • LEFT-JOIN a devolucion solo cuando el estado sea 'succeeded'
+                    #  • Se descartan filas cuyo d.id NO sea NULL (ya reembolsadas)
                     sql = """
                     SELECT
-                      v.id_ven                    AS id,
-                      h.portada_url               AS portada,
-                      h.titulo                    AS titulo,
+                      v.id_ven                      AS id,
+                      h.portada_url                 AS portada,
+                      h.titulo                      AS titulo,
                       GROUP_CONCAT(
                         CONCAT(a.nom_aut, ' ', a.apePat_aut)
                         SEPARATOR ', '
-                      )                           AS autores,
-                      v.fec_ven                   AS fecha,
-                      vol.id_volumen              AS id_volumen
+                      )                             AS autores,
+                      v.fec_ven                     AS fecha,
+                      vol.id_volumen                AS id_volumen
                     FROM venta v
-                    JOIN detalle_venta dv 
-                      ON v.id_ven = dv.id_venta
-                    JOIN volumen vol 
-                      ON dv.id_volumen = vol.id_volumen
-                    JOIN historieta h 
-                      ON vol.id_historieta = h.id_historieta
-                    JOIN historieta_autor ha 
-                      ON h.id_historieta = ha.id_historieta
-                    JOIN autor a 
-                      ON ha.id_autor = a.id_aut
+                    JOIN detalle_venta dv           ON v.id_ven = dv.id_venta
+                    JOIN volumen vol                ON dv.id_volumen = vol.id_volumen
+                    JOIN historieta h               ON vol.id_historieta = h.id_historieta
+                    JOIN historieta_autor ha        ON h.id_historieta = ha.id_historieta
+                    JOIN autor a                    ON ha.id_autor = a.id_aut
                     LEFT JOIN devolucion d
-                      ON d.id_ven = v.id_ven
-                     AND d.estado = 'succeeded'      
+                      ON d.venta_id = v.id_ven      -- FK real en el esquema
+                     AND d.estado   = 'succeeded'   -- solo devoluciones exitosas
                     WHERE v.id_user = %s
-                      AND d.id_devolucion IS NULL     
-                    GROUP BY v.id_ven, vol.id_volumen
+                      AND d.id IS NULL              -- descarta ventas devueltas
+                    GROUP BY
+                      v.id_ven,
+                      vol.id_volumen,
+                      h.portada_url,
+                      h.titulo,
+                      v.fec_ven
                     ORDER BY v.fec_ven DESC
                     """
 
                 elif tipo == 'wishlist':
                     sql = """
                     SELECT
-                      ld.id_lista                 AS id,
-                      h.portada_url               AS portada,
-                      h.titulo                    AS titulo,
+                      ld.id_lista                   AS id,
+                      h.portada_url                 AS portada,
+                      h.titulo                      AS titulo,
                       GROUP_CONCAT(
                         CONCAT(a.nom_aut, ' ', a.apePat_aut)
                         SEPARATOR ', '
-                      )                           AS autores,
-                      ld.fecha_agregado           AS fecha,
-                      vol.id_volumen              AS id_volumen
+                      )                             AS autores,
+                      ld.fecha_agregado             AS fecha,
+                      vol.id_volumen                AS id_volumen
                     FROM lista_deseo ld
-                    JOIN volumen vol 
-                      ON ld.id_volumen = vol.id_volumen
-                    JOIN historieta h 
-                      ON vol.id_historieta = h.id_historieta
-                    JOIN historieta_autor ha 
-                      ON h.id_historieta = ha.id_historieta
-                    JOIN autor a 
-                      ON ha.id_autor = a.id_aut
+                    JOIN volumen vol                ON ld.id_volumen = vol.id_volumen
+                    JOIN historieta h               ON vol.id_historieta = h.id_historieta
+                    JOIN historieta_autor ha        ON h.id_historieta = ha.id_historieta
+                    JOIN autor a                    ON ha.id_autor = a.id_aut
                     WHERE ld.id_user = %s
-                    GROUP BY ld.id_lista
+                    GROUP BY
+                      ld.id_lista,
+                      h.portada_url,
+                      h.titulo,
+                      ld.fecha_agregado,
+                      vol.id_volumen
                     ORDER BY ld.fecha_agregado DESC
                     """
                 else:
