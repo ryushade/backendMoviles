@@ -6,6 +6,8 @@ import zipfile
 import os
 from io import BytesIO
 from pymysql.cursors import DictCursor
+from flask_jwt_extended import get_jwt_identity
+
 
 
 def aprobar_proveedor(id_user, id_rol_proveedor=2):
