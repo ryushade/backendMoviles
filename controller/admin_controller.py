@@ -1,6 +1,7 @@
 from flask import jsonify, request, current_app
 from flask_jwt_extended import get_jwt_identity
 from pymysql.cursors import DictCursor
+import db.database as db
 
 import services.admin_service as admin_service
 
