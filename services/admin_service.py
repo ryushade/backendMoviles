@@ -60,37 +60,53 @@ def rechazar_proveedor(id_user):
 
 def rechazar_proveedor_por_id(id_user):
     try:
-        with db.obtener_conexion() as conexion:
-            with conexion.cursor(DictCursor) as cursor:
-                cursor.execute(
-                    "SELECT proveedor_solicitud, proveedor_aprobado "
-                    "FROM usuario WHERE id_user = %s",
-                    (id_user,)
-                )
-                fila = cursor.fetchone()
-                if not fila:
-                    return {"msg": "Usuario no encontrado"}, 404
+        # 0) Obtengo el id del admin que rechaza desde el JWT
+        email_admin = get_jwt_identity()
+        with db.obtener_conexion() as conexion, conexion.cursor(DictCursor) as cursor:
+            cursor.execute(
+                "SELECT id_user FROM usuario WHERE email = %s",
+                (email_admin,)
+            )
+            admin_row = cursor.fetchone()
+            if not admin_row:
+                return {"msg": "Admin no encontrado"}, 403
+            id_admin = admin_row["id_user"] if isinstance(admin_row, dict) else admin_row[0]
 
-                if fila["proveedor_solicitud"] != 1 or fila["proveedor_aprobado"] != 0:
-                    return {
-                        "msg": "No se realizó ningún cambio. Usuario no tenía solicitud pendiente"
-                    }, 400
+            # 1) Verifico estado actual
+            cursor.execute(
+                "SELECT proveedor_solicitud, proveedor_aprobado "
+                "FROM usuario WHERE id_user = %s",
+                (id_user,)
+            )
+            fila = cursor.fetchone()
+            if not fila:
+                return {"msg": "Usuario no encontrado"}, 404
 
-                cursor.execute(
-                    "UPDATE usuario "
-                    "SET proveedor_aprobado = 0, proveedor_solicitud = 0 "
-                    "WHERE id_user = %s",
-                    (id_user,)
-                )
-                conexion.commit()
+            if fila["proveedor_solicitud"] != 1 or fila["proveedor_aprobado"] != 0:
+                return {
+                    "msg": "No se realizó ningún cambio. Usuario no tenía solicitud pendiente"
+                }, 400
+
+            # 2) Actualizo flags y columnas de auditoría
+            cursor.execute("""
+                UPDATE usuario
+                   SET proveedor_solicitud      = 0,
+                       proveedor_aprobado       = 0,
+                       fecha_modificacion       = NOW(),
+                       id_usuario_modificacion  = %s
+                 WHERE id_user = %s
+                   AND proveedor_solicitud = 1
+                   AND proveedor_aprobado  = 0
+            """, (id_admin, id_user))
+            conexion.commit()
 
         return {"msg": "Proveedor rechazado correctamente"}, 200
 
     except Exception as e:
-        print("Error al rechazar proveedor:", e)
+        # imprime traza en logs para depuración
+        import traceback; traceback.print_exc()
         return {"msg": "Error interno del servidor"}, 500
-
-
+    
 def obtener_proveedor_por_id(id_user):
     try:
         with db.obtener_conexion() as conexion:
