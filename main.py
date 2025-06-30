@@ -1047,7 +1047,7 @@ def api_guardar_venta():
     # 2) Verificar con Stripe que el pago se completó
     try:
         intent = stripe.PaymentIntent.retrieve(payment_intent_id)
-    except stripe.error.StripeError as e:
+    except stripe.error.StripeError:
         current_app.logger.exception("Error al consultar PaymentIntent")
         return jsonify({"code": 1, "msg": "Error al verificar pago"}), 500
 
@@ -1056,25 +1056,32 @@ def api_guardar_venta():
 
     # 3) Resuelve id_user a partir del email del JWT
     email = get_jwt_identity()
-    with db.obtener_conexion() as cn, cn.cursor() as cur:
-        cur.execute(
-            "SELECT id_user FROM usuario WHERE email = %s",
-            (email,)
-        )
+    with db.obtener_conexion() as cn, cn.cursor(DictCursor) as cur:
+        cur.execute("SELECT id_user FROM usuario WHERE email = %s", (email,))
         fila = cur.fetchone()
-
     if not fila:
         return jsonify({"code": 1, "msg": "Usuario no encontrado"}), 404
 
     id_user = fila["id_user"] if isinstance(fila, dict) else fila[0]
 
-    # 4) Confirma y registra la venta
+    # 4) Confirma y registra la venta (tu servicio se encarga del INSERT original)
     try:
         id_ven = venta_service.confirmar_venta_from_intent(
             payment_intent_id,
             carrito,
             id_user
         )
+
+        # 5) Auditoría “quién”: actualizamos la fila recién creada
+        with db.obtener_conexion() as cn, cn.cursor(DictCursor) as cur:
+            cur.execute("""
+                UPDATE venta
+                   SET id_usuario_creacion     = %s,
+                       id_usuario_modificacion = %s
+                 WHERE id_ven = %s
+            """, (id_user, id_user, id_ven))
+            cn.commit()
+
         return jsonify({"code": 0, "id_venta": id_ven}), 201
 
     except ValueError as ve:
