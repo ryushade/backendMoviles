@@ -162,12 +162,19 @@ def get_items_usuario(id_user, tipo='purchases'):
     """
     Devuelve para el usuario:
       - purchases: id_venta, portada, titulo, autores, fecha, id_volumen
+                   (excluye ventas con devolución exitosa)
       - wishlist : id_lista, portada, titulo, autores, fecha_agregado, id_volumen
     """
     try:
         with db.obtener_conexion() as conexion:
             with conexion.cursor(DictCursor) as cursor:
+
                 if tipo == 'purchases':
+                    # ────────────────────────────────────────────────────────────────
+                    #  Nota nueva:
+                    #  Se LEFT-JOIN la tabla devolucion *solo* en estado 'succeeded'
+                    #  y se descartan las filas donde esa coincidencia exista.
+                    # ────────────────────────────────────────────────────────────────
                     sql = """
                     SELECT
                       v.id_ven                    AS id,
@@ -190,10 +197,15 @@ def get_items_usuario(id_user, tipo='purchases'):
                       ON h.id_historieta = ha.id_historieta
                     JOIN autor a 
                       ON ha.id_autor = a.id_aut
+                    LEFT JOIN devolucion d
+                      ON d.id_ven = v.id_ven
+                     AND d.estado = 'succeeded'      
                     WHERE v.id_user = %s
+                      AND d.id_devolucion IS NULL     
                     GROUP BY v.id_ven, vol.id_volumen
                     ORDER BY v.fec_ven DESC
                     """
+
                 elif tipo == 'wishlist':
                     sql = """
                     SELECT
@@ -227,6 +239,6 @@ def get_items_usuario(id_user, tipo='purchases'):
 
         return {"success": True, "type": tipo, "data": rows}, 200
 
-    except Exception as e:
+    except Exception:
         current_app.logger.exception(f"get_items_usuario ({tipo})")
         return {"success": False, "message": "Error interno del servidor"}, 500
