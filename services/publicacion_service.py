@@ -26,50 +26,52 @@ UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..",
 def aprobar_solicitud(id_solicitud: int, id_admin: int):
     """
     • Inserta historieta + volumen 1 y vínculos a autores y género.
-    • Cambia la solicitud a 'aprobado'.
+    • Cambia la solicitud a 'aprobado', registra fecha_respuesta e id_usuario_respuesta.
     • Lanza un job que recorre todo el ZIP y precalienta la caché JPEG.
     """
     try:
         with db.obtener_conexion() as cn, cn.cursor(DictCursor) as cur:
 
-            # 1) Solicitud pendiente (bloqueo fila)
+            # 1) Bloqueo la fila de solicitud pendiente
             cur.execute("""
                 SELECT *
                   FROM solicitud_publicacion
-                 WHERE id_solicitud = %s AND estado = 'pendiente'
+                 WHERE id_solicitud = %s
+                   AND estado = 'pendiente'
                  FOR UPDATE
             """, (id_solicitud,))
             row = cur.fetchone()
             if not row:
-                return {"code": 1,
-                        "msg": "Solicitud no encontrada o ya procesada"}, 404
+                return {"code": 1, "msg": "Solicitud no encontrada o ya procesada"}, 404
 
-            # 2) Tx explícita
-           
-
-            # 3) Historieta
+            # 2) Inserto la nueva historieta
             cur.execute("""
                 INSERT INTO historieta
-                      (titulo, descripcion, portada_url, tipo,
-                       restriccion_edad, anio_publicacion,
-                       estado, id_editorial)
-                VALUES (%s,%s,%s,%s,%s,%s,'aprobado',
-                       (SELECT id_editorial
-                          FROM editorial
-                         WHERE nombre_editorial=%s LIMIT 1))
+                    (titulo, descripcion, portada_url, tipo,
+                     restriccion_edad, anio_publicacion,
+                     estado, id_editorial)
+                VALUES (%s, %s, %s, %s, %s, %s, 'aprobado',
+                        (SELECT id_editorial
+                           FROM editorial
+                          WHERE nombre_editorial = %s
+                          LIMIT 1))
             """, (
-                row["titulo"], row["descripcion"], row["url_portada"],
-                row["tipo"],   row["restriccion_edad"], row["anio_publicacion"],
+                row["titulo"],
+                row["descripcion"],
+                row["url_portada"],
+                row["tipo"],
+                row["restriccion_edad"],
+                row["anio_publicacion"],
                 row["editorial"]
             ))
             id_hist = cur.lastrowid
 
-            # 4) Volumen 1
+            # 3) Inserto el volumen 1
             cur.execute("""
                 INSERT INTO volumen
-                      (id_historieta, numero_volumen, titulo_volumen,
-                       formato_contenido, ruta_contenido,
-                       precio_venta, fecha_publicacion)
+                    (id_historieta, numero_volumen, titulo_volumen,
+                     formato_contenido, ruta_contenido,
+                     precio_venta, fecha_publicacion)
                 VALUES (%s, 1, %s, 'zip', %s, %s, CURDATE())
             """, (
                 id_hist,
@@ -79,14 +81,13 @@ def aprobar_solicitud(id_solicitud: int, id_admin: int):
             ))
             id_vol = cur.lastrowid
 
-            # 5) Autores (coma-separado)
+            # 4) Asocio autores
             for nombre in (a.strip() for a in row["autores"].split(",") if a.strip()):
-                cur.execute("SELECT id_aut FROM autor WHERE nom_aut=%s", (nombre,))
+                cur.execute("SELECT id_aut FROM autor WHERE nom_aut = %s", (nombre,))
                 res = cur.fetchone()
                 if res:
                     id_autor = res["id_aut"]
                 else:
-                    # Inserta nombre y apellido paterno vacío
                     cur.execute(
                         "INSERT INTO autor(nom_aut, apePat_aut) VALUES(%s, %s)",
                         (nombre, "")
@@ -94,46 +95,44 @@ def aprobar_solicitud(id_solicitud: int, id_admin: int):
                     id_autor = cur.lastrowid
                 cur.execute("""
                     INSERT IGNORE INTO historieta_autor(id_historieta, id_autor)
-                    VALUES (%s,%s)
+                    VALUES (%s, %s)
                 """, (id_hist, id_autor))
 
-            # 6) Género principal  (YA viene como genero_principal en la solicitud)
+            # 5) Asocio género principal
             cur.execute("""
                 INSERT IGNORE INTO historieta_genero(id_historieta, id_genero)
                 VALUES (%s, %s)
             """, (id_hist, row["genero_principal"]))
 
-            # 7) Marcar solicitud
+            # 6) Marco la solicitud como aprobada y registro auditoría
             cur.execute("""
                 UPDATE solicitud_publicacion
-                   SET estado='aprobado',
-                       id_historieta_creada=%s,
-                       fecha_respuesta = NOW()
-                 WHERE id_solicitud=%s
-            """, (id_hist, id_solicitud))
+                   SET estado                = 'aprobado',
+                       id_historieta_creada   = %s,
+                       fecha_respuesta        = NOW(),
+                       id_usuario_respuesta   = %s
+                 WHERE id_solicitud = %s
+            """, (id_hist, id_admin, id_solicitud))
 
             cn.commit()
 
-        # 8) Precalentar caché (hilo aparte)
+        # 7) Precalentar caché en background
         threading.Thread(
             target=_precalentar_volumen,
-            args=(id_solicitud,),   # usamos el id_solicitud — es el que entiende solicitud_service
+            args=(id_solicitud,),
             daemon=True
         ).start()
 
-        return {"code": 0,
-                "msg": f"Historieta publicada (ID {id_hist})"}, 200
+        return {"code": 0, "msg": f"Historieta publicada (ID {id_hist})"}, 200
 
     except Exception:
-        current_app.logger.exception("aprobar_solicitud")
-        # si la conexión sigue viva, intenta rollback
+        current_app.logger.exception("Error en aprobar_solicitud")
         try:
-            if cn.in_transaction:    # type: ignore
+            if cn.in_transaction:
                 cn.rollback()
-        except Exception:
-            ...
-        return {"code": 1,
-                "msg": "Error interno al aprobar"}, 500
+        except:
+            pass
+        return {"code": 1, "msg": "Error interno al aprobar"}, 500
 
 # ════════════════  PRECALENTAMIENTO DE CACHÉ  ════════════════════════════════
 def _precalentar_volumen(id_solicitud: int):
