@@ -139,7 +139,7 @@ def usuario_compro_volumen(email_user: str, id_vol: int) -> bool:
             return False
         id_user = fila["id_user"]
 
-        # 2) Verificar compra por volumen
+        # 2) Verificar compra por volumen (solo ventas activas, no devueltas)
         cursor.execute(
             """
             SELECT 1
@@ -147,6 +147,7 @@ def usuario_compro_volumen(email_user: str, id_vol: int) -> bool:
               JOIN detalle_venta dv ON v.id_ven = dv.id_venta
              WHERE v.id_user    = %s
                AND dv.id_volumen = %s
+               AND v.estado_ven = 1
              LIMIT 1
             """,
             (id_user, id_vol)
