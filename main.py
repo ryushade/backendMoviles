@@ -717,39 +717,8 @@ def registrar_administrador():
 
 @app.route("/api_aprobar_proveedor", methods=["POST"])
 @jwt_required()
-def api_aprobar_proveedor():
-    data = request.get_json(silent=True) or {}
-    if "id_user" not in data:
-        return jsonify({"success": False, "message": "Falta el campo id_user"}), 400
-    id_objetivo     = data["id_user"]
-    id_rol_proveedor = data.get("id_rol_proveedor", 2)
-
-    # 1) Resuelvo el id del admin que está autenticado
-    email_admin = get_jwt_identity()
-    with db.obtener_conexion() as cn, cn.cursor(DictCursor) as cur:
-        cur.execute("SELECT id_user FROM usuario WHERE email = %s", (email_admin,))
-        fila = cur.fetchone()
-        if not fila:
-            return jsonify({"success": False, "message": "Admin no encontrado"}), 404
-        id_admin = fila["id_user"] if isinstance(fila, dict) else fila[0]
-
-        # 2) Actualizo el usuario objetivo, marcándolo como proveedor aprobado
-        cur.execute("""
-            UPDATE usuario
-               SET id_rol                 = %s,
-                   proveedor_aprobado     = 1,
-                   fecha_modificacion     = NOW(),
-                   id_usuario_modificacion = %s
-             WHERE id_user = %s
-        """, (id_rol_proveedor, id_admin, id_objetivo))
-        cn.commit()
-
-        # 3) Compruebo que efectivamente se actualizó
-        if cur.rowcount == 0:
-            return jsonify({"success": False, "message": "Usuario no encontrado"}), 404
-
-    return jsonify({"success": True, "message": "Proveedor aprobado correctamente"}), 200
-
+def registrar_proveedor():
+    return admin_controller.aprobar_proveedor()
 
 @app.route("/api_rechazar_proveedor", methods=["POST"])
 @jwt_required()
