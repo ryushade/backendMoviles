@@ -548,6 +548,54 @@ def api_por_genero(id_genero):
     return jsonify(data), 200
 
 
+@app.route("/api_eliminar_venta/<int:id_ven>", methods=["DELETE"])
+@jwt_required()
+def api_eliminar_venta(id_ven):
+    """
+    Soft-delete lógico de una venta:
+    • Marca fecha_eliminacion = NOW()
+    • Registra quién elimina en id_usuario_eliminacion
+    • Protege contra dobles eliminaciones
+    """
+    try:
+        # 1) Resuelvo el usuario que hace la petición
+        email = get_jwt_identity()
+        with db.obtener_conexion() as cn, cn.cursor(DictCursor) as cur:
+            cur.execute(
+                "SELECT id_user FROM usuario WHERE email = %s",
+                (email,)
+            )
+            fila = cur.fetchone()
+            if not fila:
+                return jsonify({"success": False, "message": "Usuario no encontrado"}), 404
+            id_user = fila["id_user"] if isinstance(fila, dict) else fila[0]
+
+            # 2) Soft-delete: sólo si no estaba ya eliminado
+            cur.execute("""
+                UPDATE venta
+                   SET fecha_eliminacion      = NOW(),
+                       id_usuario_eliminacion = %s
+                 WHERE id_ven = %s
+                   AND fecha_eliminacion IS NULL
+            """, (id_user, id_ven))
+            cn.commit()
+
+            if cur.rowcount == 0:
+                return jsonify({
+                    "success": False,
+                    "message": "Venta no encontrada o ya eliminada"
+                }), 404
+
+        # 3) Respuesta de éxito
+        return jsonify({"success": True, "message": "Venta eliminada lógicamente"}), 200
+
+    except Exception as e:
+        current_app.logger.exception("Error en api_eliminar_venta")
+        return jsonify({
+            "success": False,
+            "message": f"Error interno al eliminar venta: {e}"
+        }), 500
+
 @app.route("/volumenes/<int:id_vol>", methods=["GET"])
 def api_ficha(id_vol):
     data, st = vol_srv.ficha_volumen(id_vol)
