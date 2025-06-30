@@ -2,6 +2,8 @@ import db.database as db
 from datetime import datetime
 from pymysql.cursors import DictCursor
 from flask import current_app
+from flask_jwt_extended import get_jwt_identity
+
 
 def solicitar_proveedor(email):
     try:
@@ -195,29 +197,43 @@ def editar_solicitud_publicacion(data):
         print("Error al editar solicitud:", e)
         return {"code": 1, "msg": "Error interno del servidor"}, 500
     
-def rechazar_solicitud_publicacion(id_solicitud):
+def rechazar_solicitud_publicacion(id_solicitud: int):
+    """
+    Rechaza una solicitud:
+    • Cambia estado a 'rechazado'
+    • Fija fecha_respuesta = NOW()
+    • Registra quién la rechazó en id_usuario_respuesta
+    """
     try:
-        with db.obtener_conexion() as conexion:
-            with conexion.cursor() as cursor:
-                cursor.execute(
-                    """
-                    UPDATE solicitud_publicacion
-                       SET estado = 'rechazado',
-                           fecha_respuesta = NOW()
-                     WHERE id_solicitud = %s
-                    """,
-                    (id_solicitud,)
-                )
-                conexion.commit()
+        with db.obtener_conexion() as conexion, conexion.cursor(DictCursor) as cursor:
+            # 1) Derivo el id del admin desde el JWT
+            email_admin = get_jwt_identity()
+            cursor.execute("SELECT id_user FROM usuario WHERE email = %s", (email_admin,))
+            admin_row = cursor.fetchone()
+            if not admin_row:
+                return {"code": 1, "msg": "Admin no encontrado"}, 403
+            id_admin = admin_row["id_user"] if isinstance(admin_row, dict) else admin_row[0]
 
-                if cursor.rowcount == 0:
-                    return {"code": 1, "msg": "Solicitud no encontrada"}, 404
+            # 2) Marco la solicitud como rechazada y grabo auditoría
+            cursor.execute("""
+                UPDATE solicitud_publicacion
+                   SET estado                = 'rechazado',
+                       fecha_respuesta       = NOW(),
+                       id_usuario_respuesta  = %s
+                 WHERE id_solicitud = %s
+                   AND fecha_eliminacion IS NULL
+            """, (id_admin, id_solicitud))
+            conexion.commit()
 
-                return {"code": 0, "msg": "Solicitud rechazada correctamente."}, 200
+            if cursor.rowcount == 0:
+                return {"code": 1, "msg": "Solicitud no encontrada o ya procesada"}, 404
+
+        return {"code": 0, "msg": "Solicitud rechazada correctamente."}, 200
 
     except Exception as e:
-        print("Error al rechazar solicitud:", e)
-        return {"code": 1, "msg": "Error interno del servidor"}, 500
+        # Para depurar imprime la traza completa
+        import traceback; traceback.print_exc()
+        return {"code": 1, "msg": "Error interno al rechazar solicitud"}, 500
     
 def borrar_solicitud_publicacion(id_solicitud):
     try:
